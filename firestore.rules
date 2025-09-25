@@ -1,0 +1,27 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Regras para transações dos usuários
+    match /users/{userId}/transactions/{transactionId} {
+      // Permitir leitura e escrita apenas para o próprio usuário autenticado
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Regras para dados de usuários
+    match /users/{userId} {
+      // Permitir leitura e escrita apenas para o próprio usuário autenticado
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Permitir subcoleções (como transações)
+      match /{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+    
+    // Negar acesso a todos os outros documentos
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

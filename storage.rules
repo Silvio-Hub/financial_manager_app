@@ -1,0 +1,17 @@
+rules_version = '2';
+
+// Regras de segurança para Firebase Storage
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Regras para recibos dos usuários
+    match /receipts/{userId}/{transactionId}/{fileName} {
+      // Permitir leitura e escrita apenas para o próprio usuário autenticado
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Negar acesso a todos os outros arquivos
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

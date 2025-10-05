@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/auth_service.dart';
 import 'user_provider.dart';
 
 class User {
@@ -31,6 +33,7 @@ class User {
 }
 
 class AuthProvider extends ChangeNotifier {
+  final AuthService _authService = AuthService();
   User? _user;
   bool _isLoading = false;
   String? _error;
@@ -42,32 +45,39 @@ class AuthProvider extends ChangeNotifier {
   bool get isAuthenticated => _user != null;
 
   AuthProvider() {
-    _loadUser();
+    _initializeAuth();
+  }
+
+  void _initializeAuth() {
+    // Escutar mudanças no estado de autenticação do Firebase
+    _authService.authStateChanges.listen((firebase_auth.User? firebaseUser) {
+      if (firebaseUser != null) {
+        _user = User(
+          id: firebaseUser.uid,
+          email: firebaseUser.email ?? '',
+          name: firebaseUser.displayName,
+        );
+        _saveUser();
+      } else {
+        _user = null;
+        _clearUser();
+      }
+      notifyListeners();
+    });
   }
 
   void setUserProvider(UserProvider userProvider) {
     _userProvider = userProvider;
   }
 
-  Future<void> _loadUser() async {
-    _setLoading(true);
+  Future<void> _clearUser() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final userEmail = prefs.getString('user_email');
-      final userId = prefs.getString('user_id');
-      final userName = prefs.getString('user_name');
-
-      if (userEmail != null && userId != null) {
-        _user = User(
-          id: userId,
-          email: userEmail,
-          name: userName,
-        );
-      }
+      await prefs.remove('user_email');
+      await prefs.remove('user_id');
+      await prefs.remove('user_name');
     } catch (e) {
-      _setError('Erro ao carregar usuário: $e');
-    } finally {
-      _setLoading(false);
+      debugPrint('Erro ao limpar dados do usuário: $e');
     }
   }
 
@@ -76,36 +86,35 @@ class AuthProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      // Simulação de login - em um app real, você faria uma chamada para API
-      await Future.delayed(const Duration(seconds: 1));
-
-      // Validação simples para demonstração
-      if (email.isNotEmpty && password.length >= 6) {
-        final userId = DateTime.now().millisecondsSinceEpoch.toString();
-        final userName = email.split('@')[0];
-        
-        _user = User(
-          id: userId,
-          email: email,
-          name: userName,
-        );
-
-        await _saveUser();
-        
-        // Criar usuário no UserProvider
-        if (_userProvider != null) {
-          await _userProvider!.createUser(
-            id: userId,
-            email: email,
-            name: userName,
-          );
-        }
-        
+      final userCredential = await _authService.signInWithEmailAndPassword(email, password);
+      
+      if (userCredential != null && userCredential.user != null) {
+        // O usuário será automaticamente definido pelo listener authStateChanges
         return true;
       } else {
-        _setError('Email ou senha inválidos');
+        _setError('Falha no login');
         return false;
       }
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      String errorMessage;
+      switch (e.code) {
+        case 'user-not-found':
+          errorMessage = 'Usuário não encontrado';
+          break;
+        case 'wrong-password':
+          errorMessage = 'Senha incorreta';
+          break;
+        case 'invalid-email':
+          errorMessage = 'Email inválido';
+          break;
+        case 'user-disabled':
+          errorMessage = 'Usuário desabilitado';
+          break;
+        default:
+          errorMessage = 'Erro ao fazer login: ${e.message}';
+      }
+      _setError(errorMessage);
+      return false;
     } catch (e) {
       _setError('Erro ao fazer login: $e');
       return false;
@@ -119,24 +128,17 @@ class AuthProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      // Simulação de registro - em um app real, você faria uma chamada para API
-      await Future.delayed(const Duration(seconds: 1));
-
-      if (email.isNotEmpty && password.length >= 6 && name.isNotEmpty) {
-        final userId = DateTime.now().millisecondsSinceEpoch.toString();
-        
-        _user = User(
-          id: userId,
-          email: email,
-          name: name,
-        );
-
-        await _saveUser();
+      final userCredential = await _authService.createUserWithEmailAndPassword(email, password);
+      
+      if (userCredential != null && userCredential.user != null) {
+        // Atualizar o nome do usuário no Firebase
+        await userCredential.user!.updateDisplayName(name);
+        await userCredential.user!.reload();
         
         // Criar usuário no UserProvider
         if (_userProvider != null) {
           await _userProvider!.createUser(
-            id: userId,
+            id: userCredential.user!.uid,
             email: email,
             name: name,
           );
@@ -144,9 +146,29 @@ class AuthProvider extends ChangeNotifier {
         
         return true;
       } else {
-        _setError('Dados inválidos para registro');
+        _setError('Falha no registro');
         return false;
       }
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      String errorMessage;
+      switch (e.code) {
+        case 'weak-password':
+          errorMessage = 'A senha é muito fraca';
+          break;
+        case 'email-already-in-use':
+          errorMessage = 'Este email já está em uso';
+          break;
+        case 'invalid-email':
+          errorMessage = 'Email inválido';
+          break;
+        case 'operation-not-allowed':
+          errorMessage = 'Operação não permitida';
+          break;
+        default:
+          errorMessage = 'Erro ao registrar: ${e.message}';
+      }
+      _setError(errorMessage);
+      return false;
     } catch (e) {
       _setError('Erro ao registrar: $e');
       return false;
@@ -158,17 +180,17 @@ class AuthProvider extends ChangeNotifier {
   Future<void> logout() async {
     _setLoading(true);
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('user_email');
-      await prefs.remove('user_id');
-      await prefs.remove('user_name');
+      await _authService.signOut();
+      
+      // Limpar dados locais
+      await _clearUser();
       
       // Limpar dados do UserProvider
       if (_userProvider != null) {
         await _userProvider!.clearUser();
       }
       
-      _user = null;
+      // O usuário será automaticamente definido como null pelo listener authStateChanges
     } catch (e) {
       _setError('Erro ao fazer logout: $e');
     } finally {

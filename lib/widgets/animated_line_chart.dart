@@ -6,12 +6,14 @@ class AnimatedLineChart extends StatefulWidget {
   final List<MonthlyData> monthlyData;
   final String title;
   final double height;
+  final VoidCallback? onAddTransaction;
 
   const AnimatedLineChart({
     super.key,
     required this.monthlyData,
     required this.title,
     this.height = 300,
+    this.onAddTransaction,
   });
 
   @override
@@ -49,6 +51,12 @@ class _AnimatedLineChartState extends State<AnimatedLineChart>
   @override
   Widget build(BuildContext context) {
     if (widget.monthlyData.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    // Se nenhuma linha estiver habilitada, mostrar estado vazio
+    final bars = _buildLineBarsData();
+    if (bars.isEmpty) {
       return _buildEmptyState();
     }
 
@@ -129,7 +137,7 @@ class _AnimatedLineChartState extends State<AnimatedLineChart>
                       maxX: (widget.monthlyData.length - 1).toDouble(),
                       minY: _getMinY(),
                       maxY: _getMaxY(),
-                      lineBarsData: _buildLineBarsData(),
+                      lineBarsData: bars,
                       lineTouchData: LineTouchData(
                         enabled: true,
                         touchTooltipData: LineTouchTooltipData(
@@ -362,8 +370,9 @@ class _AnimatedLineChartState extends State<AnimatedLineChart>
     return Card(
       elevation: 4,
       child: Padding(
-        padding: const EdgeInsets.all(32.0),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
               widget.title,
@@ -371,7 +380,7 @@ class _AnimatedLineChartState extends State<AnimatedLineChart>
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
             Icon(
               Icons.show_chart,
               size: 64,
@@ -379,11 +388,26 @@ class _AnimatedLineChartState extends State<AnimatedLineChart>
             ),
             const SizedBox(height: 16),
             Text(
-              'Nenhum dado disponível',
+              'Sem dados em Tendências mensais ainda',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: Theme.of(context).colorScheme.outline,
               ),
             ),
+            const SizedBox(height: 8),
+            Text(
+              'Adicione uma transação para começar a ver o gráfico.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.outline,
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (widget.onAddTransaction != null)
+              ElevatedButton.icon(
+                onPressed: widget.onAddTransaction,
+                icon: const Icon(Icons.add),
+                label: const Text('Adicionar transação'),
+              ),
           ],
         ),
       ),
@@ -414,6 +438,10 @@ class _AnimatedLineChartState extends State<AnimatedLineChart>
 
   double _calculateInterval() {
     final range = _getMaxY() - _getMinY();
+    // Evitar intervalos zero/negativos que causam asserts no fl_chart
+    if (range <= 0) {
+      return 1; // intervalo mínimo seguro
+    }
     return range / 5; // 5 linhas de grade
   }
 

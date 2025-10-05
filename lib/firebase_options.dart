@@ -41,46 +41,47 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyDGpF8zQJ5zQJ5zQJ5zQJ5zQJ5zQJ5zQJ5',
-    appId: '1:210776833063:web:ae4b2cb32e97c84c682202',
-    messagingSenderId: '210776833063',
-    projectId: 'financialmanager-b0098',
-    authDomain: 'financialmanager-b0098.firebaseapp.com',
-    storageBucket: 'financialmanager-b0098.appspot.com',
+    apiKey: 'AIzaSyDKnnQTB_nMOCSNrD_zvh1zdFLwaMUH3wY',
+    appId: '1:973242895535:web:521bd962dd1143cad2d85a',
+    messagingSenderId: '973242895535',
+    projectId: 'financeiro-9cb44',
+    authDomain: 'financeiro-9cb44.firebaseapp.com',
+    storageBucket: 'financeiro-9cb44.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDGpF8zQJ5zQJ5zQJ5zQJ5zQJ5zQJ5zQJ5',
-    appId: '1:210776833063:android:cc5dae2442af3955682202',
-    messagingSenderId: '210776833063',
-    projectId: 'financialmanager-b0098',
-    storageBucket: 'financialmanager-b0098.appspot.com',
+    apiKey: 'AIzaSyDKnnQTB_nMOCSNrD_zvh1zdFLwaMUH3wY',
+    appId: '1:973242895535:android:89bea8a65a615fd9d2d85a',
+    messagingSenderId: '973242895535',
+    projectId: 'financeiro-9cb44',
+    storageBucket: 'financeiro-9cb44.appspot.com',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDGpF8zQJ5zQJ5zQJ5zQJ5zQJ5zQJ5zQJ5',
-    appId: '1:210776833063:ios:faa1cfdb092a7c75682202',
-    messagingSenderId: '210776833063',
-    projectId: 'financialmanager-b0098',
-    storageBucket: 'financialmanager-b0098.appspot.com',
+    apiKey: 'AIzaSyDKnnQTB_nMOCSNrD_zvh1zdFLwaMUH3wY',
+    appId: '1:973242895535:ios:dff3e1c028b4aaf0d2d85a',
+    messagingSenderId: '973242895535',
+    projectId: 'financeiro-9cb44',
+    storageBucket: 'financeiro-9cb44.appspot.com',
     iosBundleId: 'com.example.financialManager',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyDGpF8zQJ5zQJ5zQJ5zQJ5zQJ5zQJ5zQJ5',
-    appId: '1:210776833063:ios:faa1cfdb092a7c75682202',
-    messagingSenderId: '210776833063',
-    projectId: 'financialmanager-b0098',
-    storageBucket: 'financialmanager-b0098.appspot.com',
+    apiKey: 'AIzaSyDKnnQTB_nMOCSNrD_zvh1zdFLwaMUH3wY',
+    appId: '1:973242895535:ios:dff3e1c028b4aaf0d2d85a',
+    messagingSenderId: '973242895535',
+    projectId: 'financeiro-9cb44',
+    storageBucket: 'financeiro-9cb44.appspot.com',
     iosBundleId: 'com.example.financialManager',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyDGpF8zQJ5zQJ5zQJ5zQJ5zQJ5zQJ5zQJ5',
-    appId: '1:210776833063:web:427d6a26a3e5c011682202',
-    messagingSenderId: '210776833063',
-    projectId: 'financialmanager-b0098',
-    authDomain: 'financialmanager-b0098.firebaseapp.com',
-    storageBucket: 'financialmanager-b0098.appspot.com',
+    apiKey: 'AIzaSyDKnnQTB_nMOCSNrD_zvh1zdFLwaMUH3wY',
+    appId: '1:973242895535:web:52a2548eaf830a7ed2d85a',
+    messagingSenderId: '973242895535',
+    projectId: 'financeiro-9cb44',
+    authDomain: 'financeiro-9cb44.firebaseapp.com',
+    storageBucket: 'financeiro-9cb44.appspot.com',
   );
+
 }

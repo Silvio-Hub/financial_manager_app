@@ -1,4 +1,5 @@
 import 'package:intl/intl.dart';
+import 'package:flutter/services.dart';
 
 class Formatters {
   // Formatador de moeda brasileira
@@ -46,7 +47,8 @@ class Formatters {
     try {
       // Remove caracteres não numéricos exceto vírgula e ponto
       String cleanValue = value.replaceAll(RegExp(r'[^\d,.]'), '');
-      // Substitui vírgula por ponto
+      // Remove separador de milhar (.) e substitui vírgula por ponto
+      cleanValue = cleanValue.replaceAll('.', '');
       cleanValue = cleanValue.replaceAll(',', '.');
       return double.parse(cleanValue);
     } catch (e) {
@@ -73,5 +75,34 @@ class Formatters {
   /// Remove formatação de string
   static String removeFormatting(String value) {
     return value.replaceAll(RegExp(r'[^\d]'), '');
+  }
+}
+
+// Formatador de entrada para moeda brasileira (pt-BR)
+class PtBrCurrencyInputFormatter extends TextInputFormatter {
+  final NumberFormat _numberFormatter = NumberFormat('#,##0.00', 'pt_BR');
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // Manter somente dígitos
+    final digitsOnly = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
+
+    if (digitsOnly.isEmpty) {
+      return const TextEditingValue(text: '');
+    }
+
+    // Interpretar como centavos
+    final valueInCents = int.parse(digitsOnly);
+    final value = valueInCents / 100.0;
+
+    final formatted = _numberFormatter.format(value); // Ex: 1.234,56
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
   }
 }

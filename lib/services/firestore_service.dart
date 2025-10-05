@@ -6,6 +6,11 @@ class FirestoreService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  // Normalizar datas para início/fim do dia (inclusivo)
+  static DateTime _startOfDay(DateTime d) => DateTime(d.year, d.month, d.day);
+  static DateTime _endOfDay(DateTime d) =>
+      DateTime(d.year, d.month, d.day, 23, 59, 59, 999);
+
   // Referência para a coleção de transações do usuário
   static CollectionReference get _userTransactionsCollection {
     final userId = _auth.currentUser?.uid;
@@ -103,14 +108,14 @@ class FirestoreService {
       if (startDate != null) {
         query = query.where(
           'date',
-          isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+          isGreaterThanOrEqualTo: Timestamp.fromDate(_startOfDay(startDate)),
         );
       }
 
       if (endDate != null) {
         query = query.where(
           'date',
-          isLessThanOrEqualTo: Timestamp.fromDate(endDate),
+          isLessThanOrEqualTo: Timestamp.fromDate(_endOfDay(endDate)),
         );
       }
 
@@ -159,6 +164,81 @@ class FirestoreService {
     }
   }
 
+
+  // Resultado paginado para transações
+  static Future<PaginatedTransactions> getTransactionsWithFiltersPaginated({
+    int limit = 20,
+    DocumentSnapshot? lastDocument,
+    app_models.TransactionType? type,
+    app_models.TransactionCategory? category,
+    DateTime? startDate,
+    DateTime? endDate,
+    double? minAmount,
+    double? maxAmount,
+    String? searchQuery,
+  }) async {
+    try {
+      Query query = _userTransactionsCollection.orderBy('date', descending: true);
+
+      if (type != null) {
+        query = query.where('type', isEqualTo: type.toString().split('.').last);
+      }
+
+      if (category != null) {
+        query = query.where('category', isEqualTo: category.toString().split('.').last);
+      }
+
+      if (startDate != null) {
+        query = query.where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(_startOfDay(startDate)));
+      }
+
+      if (endDate != null) {
+        query = query.where('date', isLessThanOrEqualTo: Timestamp.fromDate(_endOfDay(endDate)));
+      }
+
+      if (minAmount != null) {
+        query = query.where('amount', isGreaterThanOrEqualTo: minAmount);
+      }
+
+      if (maxAmount != null) {
+        query = query.where('amount', isLessThanOrEqualTo: maxAmount);
+      }
+
+      if (lastDocument != null) {
+        query = query.startAfterDocument(lastDocument);
+      }
+
+      query = query.limit(limit);
+
+      final querySnapshot = await query.get();
+      List<app_models.Transaction> transactions = querySnapshot.docs
+          .map((doc) => app_models.Transaction.fromMap(doc.data() as Map<String, dynamic>))
+          .toList();
+
+      if (searchQuery != null && searchQuery.isNotEmpty) {
+        final lowerQuery = searchQuery.toLowerCase();
+        transactions = transactions
+            .where((transaction) =>
+                transaction.description.toLowerCase().contains(lowerQuery) ||
+                transaction.title.toLowerCase().contains(lowerQuery) ||
+                transaction.category.displayName.toLowerCase().contains(lowerQuery))
+            .toList();
+      }
+
+      final bool hasMore = querySnapshot.docs.length == limit;
+      final DocumentSnapshot? newLastDocument =
+          querySnapshot.docs.isNotEmpty ? querySnapshot.docs.last : lastDocument;
+
+      return PaginatedTransactions(
+        items: transactions,
+        lastDocument: newLastDocument,
+        hasMore: hasMore,
+      );
+    } catch (e) {
+      throw Exception('Erro ao buscar transações paginadas: $e');
+    }
+  }
+
   // Stream de transações em tempo real
   static Stream<List<app_models.Transaction>> getTransactionsStream() {
     try {
@@ -186,8 +266,8 @@ class FirestoreService {
   }) async {
     try {
       final querySnapshot = await _userTransactionsCollection
-          .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-          .where('date', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
+          .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(_startOfDay(startDate)))
+          .where('date', isLessThanOrEqualTo: Timestamp.fromDate(_endOfDay(endDate)))
           .orderBy('date', descending: true)
           .get();
 
@@ -296,6 +376,62 @@ class FirestoreService {
   // Obter ID do usuário atual
   static String? get currentUserId => _auth.currentUser?.uid;
 
+  // Atualizar URLs de recibos de uma transação
+  static Future<void> updateTransactionReceipts(
+    String transactionId,
+    List<String> receiptUrls,
+  ) async {
+    try {
+      await _userTransactionsCollection
+          .doc(transactionId)
+          .update({'receiptUrls': receiptUrls});
+    } catch (e) {
+      throw Exception('Erro ao atualizar recibos da transação: $e');
+    }
+  }
+
+  // Adicionar URL de recibo a uma transação
+  static Future<void> addReceiptToTransaction(
+    String transactionId,
+    String receiptUrl,
+  ) async {
+    try {
+      await _userTransactionsCollection.doc(transactionId).update({
+        'receiptUrls': FieldValue.arrayUnion([receiptUrl])
+      });
+    } catch (e) {
+      throw Exception('Erro ao adicionar recibo à transação: $e');
+    }
+  }
+
+  // Remover URL de recibo de uma transação
+  static Future<void> removeReceiptFromTransaction(
+    String transactionId,
+    String receiptUrl,
+  ) async {
+    try {
+      await _userTransactionsCollection.doc(transactionId).update({
+        'receiptUrls': FieldValue.arrayRemove([receiptUrl])
+      });
+    } catch (e) {
+      throw Exception('Erro ao remover recibo da transação: $e');
+    }
+  }
+
+  // Obter URLs de recibos de uma transação
+  static Future<List<String>> getTransactionReceipts(String transactionId) async {
+    try {
+      final doc = await _userTransactionsCollection.doc(transactionId).get();
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        return List<String>.from(data['receiptUrls'] ?? []);
+      }
+      return [];
+    } catch (e) {
+      throw Exception('Erro ao buscar recibos da transação: $e');
+    }
+  }
+
   // Limpar cache local (útil para logout)
   static Future<void> clearLocalCache() async {
     try {
@@ -304,4 +440,18 @@ class FirestoreService {
       throw Exception('Erro ao limpar cache: $e');
     }
   }
+}
+
+// Resultado estruturado para paginação de transações
+
+class PaginatedTransactions {
+  final List<app_models.Transaction> items;
+  final DocumentSnapshot? lastDocument;
+  final bool hasMore;
+
+  const PaginatedTransactions({
+    required this.items,
+    required this.lastDocument,
+    required this.hasMore,
+  });
 }

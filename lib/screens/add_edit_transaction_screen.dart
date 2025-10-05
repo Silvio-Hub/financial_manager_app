@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/transaction.dart' as app_models;
 import '../providers/financial_provider.dart';
 import '../utils/validators.dart';
+import '../utils/formatters.dart';
 import '../widgets/receipt_upload_widget.dart';
 import '../widgets/radio_group.dart';
 
@@ -47,7 +48,7 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
     final transaction = widget.transaction!;
     _titleController.text = transaction.title;
     _descriptionController.text = transaction.description;
-    _amountController.text = transaction.amount.toString();
+    _amountController.text = Formatters.formatNumber(transaction.amount);
     _selectedType = transaction.type;
     _selectedCategory = transaction.category;
     _selectedDate = transaction.date;
@@ -121,8 +122,8 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
       _isLoading = true;
     });
 
-    try {
-      final amount = double.parse(_amountController.text.replaceAll(',', '.'));
+  try {
+      final amount = Formatters.parseDouble(_amountController.text) ?? 0.0;
       
       final transaction = app_models.Transaction(
         id: _isEditing ? widget.transaction!.id : DateTime.now().millisecondsSinceEpoch.toString(),
@@ -132,6 +133,7 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
         type: _selectedType,
         category: _selectedCategory,
         date: _selectedDate,
+        userId: FirebaseAuth.instance.currentUser?.uid,
       );
 
       final provider = context.read<FinancialProvider>();
@@ -294,7 +296,7 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
                 ),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]')),
+                  PtBrCurrencyInputFormatter(),
                 ],
                 validator: Validators.validateAmount,
               ),

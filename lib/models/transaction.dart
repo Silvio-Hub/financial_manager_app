@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum TransactionType {
   income,
@@ -34,6 +35,7 @@ class Transaction {
   final TransactionCategory category;
   final DateTime date;
   final String? userId;
+  final List<String> receiptUrls;
 
   Transaction({
     required this.id,
@@ -44,6 +46,7 @@ class Transaction {
     required this.category,
     required this.date,
     this.userId,
+    this.receiptUrls = const [],
   });
 
   // Converter para Map (para armazenamento)
@@ -55,8 +58,10 @@ class Transaction {
       'amount': amount,
       'type': type.name,
       'category': category.name,
-      'date': date.toIso8601String(),
+      // Persistir como Timestamp para consultas de intervalo no Firestore
+      'date': Timestamp.fromDate(date),
       'userId': userId,
+      'receiptUrls': receiptUrls,
     };
   }
 
@@ -67,16 +72,32 @@ class Transaction {
       title: map['title'] ?? '',
       description: map['description'] ?? '',
       amount: (map['amount'] ?? 0.0).toDouble(),
-      type: TransactionType.values.firstWhere(
-        (e) => e.name == map['type'],
-        orElse: () => TransactionType.expense,
-      ),
+      // Tornar o parsing do tipo robusto para valores localizados (pt-BR)
+      type: (() {
+        final raw = (map['type'] ?? '').toString().toLowerCase().trim();
+        if (raw == 'income' || raw == 'receita' || raw == 'entrada') {
+          return TransactionType.income;
+        }
+        if (raw == 'expense' || raw == 'despesa' || raw == 'saida' || raw == 'saída') {
+          return TransactionType.expense;
+        }
+        // Caso não reconheça, manter como despesa para evitar falso positivo
+        return TransactionType.expense;
+      })(),
       category: TransactionCategory.values.firstWhere(
         (e) => e.name == map['category'],
         orElse: () => TransactionCategory.otherExpense,
       ),
-      date: DateTime.parse(map['date'] ?? DateTime.now().toIso8601String()),
+      date: (() {
+        final raw = map['date'];
+        if (raw is Timestamp) return raw.toDate();
+        if (raw is String && raw.isNotEmpty) {
+          return DateTime.parse(raw);
+        }
+        return DateTime.now();
+      })(),
       userId: map['userId'],
+      receiptUrls: List<String>.from(map['receiptUrls'] ?? []),
     );
   }
 
@@ -90,6 +111,7 @@ class Transaction {
     TransactionCategory? category,
     DateTime? date,
     String? userId,
+    List<String>? receiptUrls,
   }) {
     return Transaction(
       id: id ?? this.id,
@@ -100,6 +122,7 @@ class Transaction {
       category: category ?? this.category,
       date: date ?? this.date,
       userId: userId ?? this.userId,
+      receiptUrls: receiptUrls ?? this.receiptUrls,
     );
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/transaction.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' hide Transaction;
 import '../models/financial_summary.dart';
 import '../services/firestore_service.dart';
 import '../services/logger_service.dart';
@@ -14,13 +15,23 @@ class FinancialProvider with ChangeNotifier {
   DateTime _selectedPeriodStart = DateTime.now();
   DateTime _selectedPeriodEnd = DateTime.now();
 
+  // Estado de paginação (Firestore)
+  DocumentSnapshot? _lastFetchedDocument;
+  bool _hasMoreTransactions = true;
+
   // Getters
-  List<Transaction> get transactions => List.unmodifiable(_transactions);
+  // Garantir ordenação por data (mais recentes primeiro) sempre que acessar
+  List<Transaction> get transactions {
+    final sorted = List<Transaction>.from(_transactions)
+      ..sort((a, b) => b.date.compareTo(a.date));
+    return List.unmodifiable(sorted);
+  }
   FinancialSummary? get currentSummary => _currentSummary;
   bool get isLoading => _isLoading;
   String? get error => _error;
   DateTime get selectedPeriodStart => _selectedPeriodStart;
   DateTime get selectedPeriodEnd => _selectedPeriodEnd;
+  bool get hasMoreTransactions => _hasMoreTransactions;
 
   // Transações filtradas por período
   List<Transaction> get filteredTransactions {
@@ -49,12 +60,12 @@ class FinancialProvider with ChangeNotifier {
   // Totais
   double get totalIncome => incomeTransactions.fold(
     0.0,
-    (sum, transaction) => sum + transaction.amount,
+    (previous, transaction) => previous + transaction.amount,
   );
 
   double get totalExpense => expenseTransactions.fold(
     0.0,
-    (sum, transaction) => sum + transaction.amount,
+    (previous, transaction) => previous + transaction.amount,
   );
 
   double get balance => totalIncome - totalExpense;
@@ -65,9 +76,10 @@ class FinancialProvider with ChangeNotifier {
   }
 
   void _initializePeriod() {
+    // Usar últimos 30 dias como período padrão para refletir melhor dados recentes
     final now = DateTime.now();
-    _selectedPeriodStart = DateTime(now.year, now.month, 1);
-    _selectedPeriodEnd = DateTime(now.year, now.month + 1, 0);
+    _selectedPeriodStart = now.subtract(const Duration(days: 30));
+    _selectedPeriodEnd = now;
   }
 
   // Carregar transações (prioriza Firebase se autenticado)
@@ -642,12 +654,16 @@ class FinancialProvider with ChangeNotifier {
 
     if (reset) {
       _setLoading(true);
+      // Resetar estado de paginação
+      _lastFetchedDocument = null;
+      _hasMoreTransactions = true;
     }
     _clearError();
 
     try {
-      final transactions = await FirestoreService.getTransactionsWithFilters(
+      final result = await FirestoreService.getTransactionsWithFiltersPaginated(
         limit: pageSize,
+        lastDocument: _lastFetchedDocument,
         type: type,
         category: category,
         startDate: dateRange?.start,
@@ -657,10 +673,13 @@ class FinancialProvider with ChangeNotifier {
         searchQuery: searchQuery,
       );
 
+      _lastFetchedDocument = result.lastDocument;
+      _hasMoreTransactions = result.hasMore;
+
       if (reset) {
-        _transactions = transactions;
+        _transactions = result.items;
       } else {
-        _transactions.addAll(transactions);
+        _transactions.addAll(result.items);
       }
 
       _updateSummary();

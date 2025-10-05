@@ -71,16 +71,37 @@ class _LoginScreenState extends State<LoginScreen>
     if (!_formKey.currentState!.validate()) return;
 
     final authProvider = context.read<AuthProvider>();
-    final success = await authProvider.login(
-      _emailController.text.trim(),
-      _passwordController.text,
-    );
+    bool success;
+    
+    if (_isLoginMode) {
+      // Modo login
+      success = await authProvider.login(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
+    } else {
+      // Modo registro
+      success = await authProvider.register(
+        _emailController.text.trim(),
+        _passwordController.text,
+        'Usuário', // Nome padrão, pode ser melhorado com um campo adicional
+      );
+    }
 
     if (mounted && !success && authProvider.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(authProvider.error!),
           backgroundColor: Theme.of(context).colorScheme.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } else if (mounted && success && !_isLoginMode) {
+      // Mostrar mensagem de sucesso para registro
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Conta criada com sucesso!'),
+          backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
         ),
       );

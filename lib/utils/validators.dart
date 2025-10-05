@@ -1,4 +1,5 @@
 import 'package:email_validator/email_validator.dart';
+import '../utils/formatters.dart';
 import '../constants/app_strings.dart';
 
 class Validators {
@@ -201,31 +202,16 @@ class Validators {
       return 'Valor é obrigatório';
     }
     
-    // Remove espaços e substitui vírgula por ponto
-    final cleanValue = value.trim().replaceAll(',', '.');
-    
-    // Verifica se é um número válido
-    final amount = double.tryParse(cleanValue);
+    final amount = Formatters.parseDouble(value);
     if (amount == null) {
       return 'Digite um valor válido';
     }
-    
-    // Verifica se é positivo
     if (amount <= 0) {
       return 'Valor deve ser maior que zero';
     }
-    
-    // Verifica se não é muito grande (máximo 1 milhão)
     if (amount > 1000000) {
       return 'Valor muito alto (máximo R\$ 1.000.000)';
     }
-    
-    // Verifica se tem no máximo 2 casas decimais
-    final decimalParts = cleanValue.split('.');
-    if (decimalParts.length > 1 && decimalParts[1].length > 2) {
-      return 'Valor deve ter no máximo 2 casas decimais';
-    }
-    
     return null;
   }
 

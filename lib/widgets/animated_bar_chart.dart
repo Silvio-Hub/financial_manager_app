@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../models/financial_summary.dart' as models;
+import '../utils/formatters.dart';
 
 class AnimatedBarChart extends StatefulWidget {
   final List<models.PieChartData> categoryData;
@@ -64,9 +65,9 @@ class _AnimatedBarChartState extends State<AnimatedBarChart>
               children: [
                 Text(
                   widget.title,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 Icon(
                   widget.isExpense ? Icons.trending_down : Icons.trending_up,
@@ -95,7 +96,8 @@ class _AnimatedBarChartState extends State<AnimatedBarChart>
                               touchedIndex = -1;
                               return;
                             }
-                            touchedIndex = barTouchResponse.spot!.touchedBarGroupIndex;
+                            touchedIndex =
+                                barTouchResponse.spot!.touchedBarGroupIndex;
                           });
                         },
                       ),
@@ -127,10 +129,14 @@ class _AnimatedBarChartState extends State<AnimatedBarChart>
                         show: true,
                         border: Border(
                           bottom: BorderSide(
-                            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.outline.withValues(alpha: 0.3),
                           ),
                           left: BorderSide(
-                            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.outline.withValues(alpha: 0.3),
                           ),
                         ),
                       ),
@@ -141,7 +147,9 @@ class _AnimatedBarChartState extends State<AnimatedBarChart>
                         horizontalInterval: _calculateInterval(),
                         getDrawingHorizontalLine: (value) {
                           return FlLine(
-                            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.outline.withValues(alpha: 0.2),
                             strokeWidth: 1,
                           );
                         },
@@ -164,7 +172,7 @@ class _AnimatedBarChartState extends State<AnimatedBarChart>
       final index = entry.key;
       final data = entry.value;
       final isTouched = index == touchedIndex;
-      
+
       return BarChartGroupData(
         x: index,
         barRods: [
@@ -198,9 +206,9 @@ class _AnimatedBarChartState extends State<AnimatedBarChart>
           angle: -0.5,
           child: Text(
             _getShortCategoryName(category),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontSize: 10,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(fontSize: 10),
             textAlign: TextAlign.center,
           ),
         ),
@@ -213,8 +221,12 @@ class _AnimatedBarChartState extends State<AnimatedBarChart>
     return SideTitleWidget(
       axisSide: meta.axisSide,
       child: Text(
-        _formatCurrency(value),
+        Formatters.formatCurrency(value),
         style: Theme.of(context).textTheme.bodySmall,
+        maxLines: 1,
+        softWrap: false,
+        overflow: TextOverflow.clip,
+        textAlign: TextAlign.right,
       ),
     );
   }
@@ -228,7 +240,7 @@ class _AnimatedBarChartState extends State<AnimatedBarChart>
     if (groupIndex >= 0 && groupIndex < widget.categoryData.length) {
       final data = widget.categoryData[groupIndex];
       return BarTooltipItem(
-        '${data.label}\\n${_formatCurrency(data.value)}\\n${data.percentage.toStringAsFixed(1)}%',
+        '${data.label}\\n${Formatters.formatCurrency(data.value)}\\n${data.percentage.toStringAsFixed(1)}%',
         TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.bold,
@@ -265,9 +277,9 @@ class _AnimatedBarChartState extends State<AnimatedBarChart>
               const SizedBox(width: 6),
               Text(
                 data.label,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
               ),
               const SizedBox(width: 4),
               Text(
@@ -292,9 +304,9 @@ class _AnimatedBarChartState extends State<AnimatedBarChart>
           children: [
             Text(
               widget.title,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 24),
             Icon(
@@ -324,18 +336,10 @@ class _AnimatedBarChartState extends State<AnimatedBarChart>
 
   double _calculateInterval() {
     final maxY = _getMaxY();
-    return maxY / 5; // 5 linhas de grade
-  }
-
-  String _formatCurrency(double value) {
-    if (value >= 1000) {
-      return 'R\$ ${(value / 1000).toStringAsFixed(1)}k';
-    }
-    return 'R\$ ${value.toStringAsFixed(0)}';
+    return maxY / 5;
   }
 
   String _getShortCategoryName(String category) {
-    // Mapear nomes longos para versões curtas
     final shortNames = {
       'Alimentação': 'Comida',
       'Transporte': 'Transp.',
@@ -349,7 +353,7 @@ class _AnimatedBarChartState extends State<AnimatedBarChart>
       'Investimentos': 'Invest.',
       'Vendas': 'Vendas',
     };
-    
+
     return shortNames[category] ?? category;
   }
 }

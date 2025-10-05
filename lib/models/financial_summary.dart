@@ -61,8 +61,9 @@ class FinancialSummary {
     DateTime? endDate,
   }) {
     final now = DateTime.now();
-    final start = startDate ?? DateTime(now.year, now.month, 1);
-    final end = endDate ?? DateTime(now.year, now.month + 1, 0);
+    // Padrão: últimos 30 dias, não mês atual
+    final start = startDate ?? now.subtract(const Duration(days: 30));
+    final end = endDate ?? now;
 
     // Filtrar transações por período
     final filteredTransactions = transactions.where((t) =>

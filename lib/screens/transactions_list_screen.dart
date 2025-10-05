@@ -90,7 +90,8 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
       searchQuery: _searchController.text.trim(),
       reset: reset,
     );
-
+    // Atualizar flag local de continuidade com base no provider
+    _hasMoreData = provider.hasMoreTransactions;
     if (reset) {
       setState(() {});
     }
@@ -493,9 +494,9 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
           child: ListView.builder(
             controller: _scrollController,
             padding: const EdgeInsets.all(16),
-            itemCount: provider.transactions.length + (_isLoadingMore ? 1 : 0),
+            itemCount: provider.transactions.length + ((_isLoadingMore && _hasMoreData) ? 1 : 0),
             itemBuilder: (context, index) {
-              if (index == provider.transactions.length) {
+              if (index == provider.transactions.length && _hasMoreData) {
                 return const Center(
                   child: Padding(
                     padding: EdgeInsets.all(16),

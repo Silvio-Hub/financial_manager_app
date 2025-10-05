@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../models/transaction.dart';
+import '../utils/formatters.dart';
 
 class AnimatedPieChart extends StatefulWidget {
   final Map<TransactionCategory, double> data;
@@ -55,6 +56,7 @@ class _AnimatedPieChartState extends State<AnimatedPieChart>
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
               widget.title,
@@ -62,8 +64,9 @@ class _AnimatedPieChartState extends State<AnimatedPieChart>
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 16),
-            Expanded(
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 190,
               child: AnimatedBuilder(
                 animation: _animation,
                 builder: (context, child) {
@@ -85,15 +88,20 @@ class _AnimatedPieChartState extends State<AnimatedPieChart>
                       ),
                       borderData: FlBorderData(show: false),
                       sectionsSpace: 2,
-                      centerSpaceRadius: 40,
+                      centerSpaceRadius: 32,
                       sections: _buildPieChartSections(),
                     ),
                   );
                 },
               ),
             ),
-            const SizedBox(height: 16),
-            _buildLegend(),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 120,
+              child: SingleChildScrollView(
+                child: _buildLegend(),
+              ),
+            ),
           ],
         ),
       ),
@@ -167,14 +175,16 @@ class _AnimatedPieChartState extends State<AnimatedPieChart>
                 category.displayName,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   fontWeight: FontWeight.w500,
+                  fontSize: 11,
                 ),
               ),
               const SizedBox(width: 4),
               Text(
-                'R\$ ${value.toStringAsFixed(2)}',
+                Formatters.formatCurrency(value),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: category.color,
+                  fontSize: 11,
                 ),
               ),
             ],

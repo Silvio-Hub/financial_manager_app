@@ -8,7 +8,7 @@ O erro "notfound" que você está enfrentando ao criar uma conta está relaciona
 ### Passo 1: Acessar o Console do Firebase
 1. Acesse [https://console.firebase.google.com](https://console.firebase.google.com)
 2. Faça login com sua conta Google
-3. Selecione o projeto `financialmanager-b0098`
+3. Selecione o projeto `financeiro-9cb44`
 
 ### Passo 2: Habilitar Authentication
 1. No menu lateral esquerdo, clique em **"Authentication"**

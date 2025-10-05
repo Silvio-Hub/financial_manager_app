@@ -21,7 +21,6 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
 
-  // Filtros
   app_models.TransactionType? _selectedType;
   app_models.TransactionCategory? _selectedCategory;
   DateTimeRange? _selectedDateRange;
@@ -29,7 +28,6 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
   double? _maxAmount;
   bool _showFilters = false;
 
-  // Paginação
   static const int _pageSize = 20;
   int _currentPage = 0;
   bool _isLoadingMore = false;
@@ -51,7 +49,6 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
 
     _scrollController.addListener(_onScroll);
 
-    // Carregar transações iniciais
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadTransactions(reset: true);
     });
@@ -90,7 +87,7 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
       searchQuery: _searchController.text.trim(),
       reset: reset,
     );
-
+    _hasMoreData = provider.hasMoreTransactions;
     if (reset) {
       setState(() {});
     }
@@ -218,7 +215,6 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
           fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         ),
         onChanged: (value) {
-          // Implementar debounce para busca em tempo real
           Future.delayed(const Duration(milliseconds: 500), () {
             if (_searchController.text == value) {
               _loadTransactions(reset: true);
@@ -251,9 +247,8 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
                       children: [
                         Text(
                           'Filtros',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 12),
                         _buildFilterChips(),
@@ -493,9 +488,11 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
           child: ListView.builder(
             controller: _scrollController,
             padding: const EdgeInsets.all(16),
-            itemCount: provider.transactions.length + (_isLoadingMore ? 1 : 0),
+            itemCount:
+                provider.transactions.length +
+                ((_isLoadingMore && _hasMoreData) ? 1 : 0),
             itemBuilder: (context, index) {
-              if (index == provider.transactions.length) {
+              if (index == provider.transactions.length && _hasMoreData) {
                 return const Center(
                   child: Padding(
                     padding: EdgeInsets.all(16),
@@ -607,7 +604,6 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
 
                 const SizedBox(height: 24),
 
-                // Botões de ação
                 Row(
                   children: [
                     Expanded(
@@ -644,7 +640,7 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
   }
 
   Future<void> _editTransaction(app_models.Transaction transaction) async {
-    Navigator.pop(context); // Fechar modal de detalhes
+    Navigator.pop(context);
 
     final result = await Navigator.push<bool>(
       context,
@@ -655,13 +651,12 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
     );
 
     if (result == true) {
-      // Recarregar lista se a transação foi editada
       _loadTransactions(reset: true);
     }
   }
 
   Future<void> _deleteTransaction(app_models.Transaction transaction) async {
-    Navigator.pop(context); // Fechar modal de detalhes
+    Navigator.pop(context);
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -695,7 +690,6 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
             ),
           );
 
-          // Recarregar lista
           _loadTransactions(reset: true);
         }
       } catch (e) {

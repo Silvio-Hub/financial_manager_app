@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum TransactionType {
-  income,
-  expense,
-}
+enum TransactionType { income, expense }
 
 enum TransactionCategory {
   // Receitas
@@ -12,7 +10,7 @@ enum TransactionCategory {
   investment,
   gift,
   otherIncome,
-  
+
   // Despesas
   food,
   transport,
@@ -34,6 +32,7 @@ class Transaction {
   final TransactionCategory category;
   final DateTime date;
   final String? userId;
+  final List<String> receiptUrls;
 
   Transaction({
     required this.id,
@@ -44,9 +43,9 @@ class Transaction {
     required this.category,
     required this.date,
     this.userId,
+    this.receiptUrls = const [],
   });
 
-  // Converter para Map (para armazenamento)
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -55,32 +54,48 @@ class Transaction {
       'amount': amount,
       'type': type.name,
       'category': category.name,
-      'date': date.toIso8601String(),
+      'date': Timestamp.fromDate(date),
       'userId': userId,
+      'receiptUrls': receiptUrls,
     };
   }
 
-  // Criar a partir de Map
   factory Transaction.fromMap(Map<String, dynamic> map) {
     return Transaction(
       id: map['id'] ?? '',
       title: map['title'] ?? '',
       description: map['description'] ?? '',
       amount: (map['amount'] ?? 0.0).toDouble(),
-      type: TransactionType.values.firstWhere(
-        (e) => e.name == map['type'],
-        orElse: () => TransactionType.expense,
-      ),
+      type: (() {
+        final raw = (map['type'] ?? '').toString().toLowerCase().trim();
+        if (raw == 'income' || raw == 'receita' || raw == 'entrada') {
+          return TransactionType.income;
+        }
+        if (raw == 'expense' ||
+            raw == 'despesa' ||
+            raw == 'saida' ||
+            raw == 'saída') {
+          return TransactionType.expense;
+        }
+        return TransactionType.expense;
+      })(),
       category: TransactionCategory.values.firstWhere(
         (e) => e.name == map['category'],
         orElse: () => TransactionCategory.otherExpense,
       ),
-      date: DateTime.parse(map['date'] ?? DateTime.now().toIso8601String()),
+      date: (() {
+        final raw = map['date'];
+        if (raw is Timestamp) return raw.toDate();
+        if (raw is String && raw.isNotEmpty) {
+          return DateTime.parse(raw);
+        }
+        return DateTime.now();
+      })(),
       userId: map['userId'],
+      receiptUrls: List<String>.from(map['receiptUrls'] ?? []),
     );
   }
 
-  // Copiar com modificações
   Transaction copyWith({
     String? id,
     String? title,
@@ -90,6 +105,7 @@ class Transaction {
     TransactionCategory? category,
     DateTime? date,
     String? userId,
+    List<String>? receiptUrls,
   }) {
     return Transaction(
       id: id ?? this.id,
@@ -100,6 +116,7 @@ class Transaction {
       category: category ?? this.category,
       date: date ?? this.date,
       userId: userId ?? this.userId,
+      receiptUrls: receiptUrls ?? this.receiptUrls,
     );
   }
 
@@ -118,7 +135,6 @@ class Transaction {
   int get hashCode => id.hashCode;
 }
 
-// Extensões para facilitar o uso
 extension TransactionTypeExtension on TransactionType {
   String get displayName {
     switch (this) {
@@ -162,7 +178,7 @@ extension TransactionCategoryExtension on TransactionCategory {
         return 'Presente';
       case TransactionCategory.otherIncome:
         return 'Outras Receitas';
-      
+
       // Despesas
       case TransactionCategory.food:
         return 'Alimentação';
@@ -198,7 +214,7 @@ extension TransactionCategoryExtension on TransactionCategory {
         return Icons.card_giftcard;
       case TransactionCategory.otherIncome:
         return Icons.attach_money;
-      
+
       // Despesas
       case TransactionCategory.food:
         return Icons.restaurant;
@@ -234,7 +250,7 @@ extension TransactionCategoryExtension on TransactionCategory {
         return Colors.pink;
       case TransactionCategory.otherIncome:
         return Colors.teal;
-      
+
       // Despesas
       case TransactionCategory.food:
         return Colors.orange;

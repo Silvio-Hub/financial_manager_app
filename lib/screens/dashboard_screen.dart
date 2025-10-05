@@ -7,6 +7,7 @@ import '../widgets/animated_pie_chart.dart';
 import '../widgets/animated_line_chart.dart';
 import '../widgets/animated_bar_chart.dart';
 import '../models/financial_summary.dart';
+import '../utils/formatters.dart';
 import 'transactions_list_screen.dart';
 import 'add_edit_transaction_screen.dart';
 import 'profile_screen.dart';
@@ -24,19 +25,21 @@ class _DashboardScreenState extends State<DashboardScreen>
   late AnimationController _headerAnimationController;
   late AnimationController _cardsAnimationController;
   late AnimationController _chartsAnimationController;
-  
+
   late Animation<double> _headerAnimation;
   late Animation<double> _cardsAnimation;
   late Animation<double> _chartsAnimation;
-  
+
   int _selectedTabIndex = 0;
   final PageController _pageController = PageController();
+
+  bool _showOverviewExpenses = true;
+  bool _showCategoryExpenses = true;
 
   @override
   void initState() {
     super.initState();
-    
-    // Inicializar controladores de animação
+
     _headerAnimationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -53,7 +56,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       value: 0.0,
     );
 
-    // Configurar animações
     _headerAnimation = CurvedAnimation(
       parent: _headerAnimationController,
       curve: Curves.easeOutQuart,
@@ -67,7 +69,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       curve: Curves.easeOutQuint,
     );
 
-    // Carregar dados e iniciar animações
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<FinancialProvider>().loadTransactionsFromFirestore();
       _startAnimations();
@@ -116,17 +117,16 @@ class _DashboardScreenState extends State<DashboardScreen>
         builder: (context, provider, child) {
           final summary = provider.currentSummary;
           if (summary == null) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
-          
+
           return CustomScrollView(
             slivers: [
               _buildAnimatedHeader(context, summary),
               _buildAnimatedSummaryCards(context, summary),
               _buildTabSelector(),
               _buildAnimatedCharts(context, summary),
+              const SliverToBoxAdapter(child: SizedBox(height: 88)),
             ],
           );
         },
@@ -145,23 +145,27 @@ class _DashboardScreenState extends State<DashboardScreen>
             child: Opacity(
               opacity: _headerAnimation.value.clamp(0.0, 1.0),
               child: Container(
-                margin: const EdgeInsets.all(12),
-                padding: const EdgeInsets.all(20),
+                margin: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
                       Theme.of(context).colorScheme.primary,
-                      Theme.of(context).colorScheme.primary.withValues(alpha: 0.8),
+                      Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.8),
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
-                      blurRadius: 15,
-                      offset: const Offset(0, 5),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
@@ -176,19 +180,25 @@ class _DashboardScreenState extends State<DashboardScreen>
                           children: [
                             Text(
                               'Olá!',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.9),
-                              ),
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                  ),
                             ),
                             Consumer<AuthProvider>(
                               builder: (context, authProvider, child) {
                                 final user = authProvider.user;
                                 return Text(
-                                  user?.email != null ? user!.email.split('@').first : 'Usuário',
-                                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                  user?.email != null
+                                      ? user!.email.split('@').first
+                                      : 'Usuário',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineMedium
+                                      ?.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                 );
                               },
                             ),
@@ -199,12 +209,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                           icon: const Icon(
                             Icons.account_circle,
                             color: Colors.white,
-                            size: 40,
+                            size: 32,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 12),
                     Text(
                       'Saldo Total',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -212,11 +222,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                     ),
                     Text(
-                      'R\$ ${summary.balance.toStringAsFixed(2)}',
-                      style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      Formatters.formatCurrency(summary.balance),
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
                   ],
                 ),
@@ -228,7 +239,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  Widget _buildAnimatedSummaryCards(BuildContext context, FinancialSummary summary) {
+  Widget _buildAnimatedSummaryCards(
+    BuildContext context,
+    FinancialSummary summary,
+  ) {
     return SliverToBoxAdapter(
       child: AnimatedBuilder(
         animation: _cardsAnimation,
@@ -270,29 +284,30 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  Widget _buildSummaryCard(String title, double value, IconData icon, Color color) {
+  Widget _buildSummaryCard(
+    String title,
+    double value,
+    IconData icon,
+    Color color,
+  ) {
     return Card(
       elevation: 4,
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         child: Column(
           children: [
-            Icon(
-              icon,
-              color: color,
-              size: 32,
-            ),
-            const SizedBox(height: 8),
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 6),
             Text(
               title,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
-              'R\$ ${value.toStringAsFixed(2)}',
+              Formatters.formatCurrency(value),
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: color,
@@ -328,7 +343,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Widget _buildTabButton(String title, int index, IconData icon) {
     final isSelected = _selectedTabIndex == index;
-    
+
     return Expanded(
       child: GestureDetector(
         onTap: () => _selectTab(index),
@@ -338,7 +353,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           margin: const EdgeInsets.all(4),
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           decoration: BoxDecoration(
-            color: isSelected 
+            color: isSelected
                 ? Theme.of(context).colorScheme.primary
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(20),
@@ -350,7 +365,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               Icon(
                 icon,
                 size: 18,
-                color: isSelected 
+                color: isSelected
                     ? Colors.white
                     : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
@@ -359,10 +374,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                 child: Text(
                   title,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: isSelected 
+                    color: isSelected
                         ? Colors.white
                         : Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
@@ -386,19 +403,20 @@ class _DashboardScreenState extends State<DashboardScreen>
               opacity: _chartsAnimation.value.clamp(0.0, 1.0),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(
-                  minHeight: 300,
-                  maxHeight: 400,
+                  minHeight: 320,
+                  maxHeight: 480,
                 ),
                 child: PageTransitionSwitcher(
                   duration: const Duration(milliseconds: 500),
-                  transitionBuilder: (child, primaryAnimation, secondaryAnimation) {
-                    return SharedAxisTransition(
-                      animation: primaryAnimation,
-                      secondaryAnimation: secondaryAnimation,
-                      transitionType: SharedAxisTransitionType.horizontal,
-                      child: child,
-                    );
-                  },
+                  transitionBuilder:
+                      (child, primaryAnimation, secondaryAnimation) {
+                        return SharedAxisTransition(
+                          animation: primaryAnimation,
+                          secondaryAnimation: secondaryAnimation,
+                          transitionType: SharedAxisTransitionType.horizontal,
+                          child: child,
+                        );
+                      },
                   child: _buildCurrentChart(summary),
                 ),
               ),
@@ -426,9 +444,82 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Padding(
       key: const ValueKey('overview'),
       padding: const EdgeInsets.all(16),
-      child: AnimatedPieChart(
-        data: summary.expensesByCategory,
-        title: 'Distribuição de Despesas',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              PopupMenuButton<String>(
+                tooltip: 'Alternar tipo',
+                onSelected: (value) {
+                  setState(() {
+                    _showOverviewExpenses = value == 'expense';
+                  });
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'expense',
+                    child: Row(
+                      children: [
+                        Icon(
+                          _showOverviewExpenses
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                          size: 18,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('Despesas'),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'income',
+                    child: Row(
+                      children: [
+                        Icon(
+                          !_showOverviewExpenses
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                          size: 18,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('Receitas'),
+                      ],
+                    ),
+                  ),
+                ],
+                child: Row(
+                  children: [
+                    Icon(
+                      _showOverviewExpenses
+                          ? Icons.trending_down
+                          : Icons.trending_up,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(_showOverviewExpenses ? 'Despesas' : 'Receitas'),
+                    const Icon(Icons.arrow_drop_down),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: AnimatedPieChart(
+              data: _showOverviewExpenses
+                  ? summary.expensesByCategory
+                  : summary.incomesByCategory,
+              title: _showOverviewExpenses
+                  ? 'Distribuição de Despesas'
+                  : 'Distribuição de Receitas',
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -437,10 +528,83 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Padding(
       key: const ValueKey('categories'),
       padding: const EdgeInsets.all(16),
-      child: AnimatedBarChart(
-        categoryData: summary.expensesPieChartData,
-        title: 'Despesas por Categoria',
-        isExpense: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              PopupMenuButton<String>(
+                tooltip: 'Alternar tipo',
+                onSelected: (value) {
+                  setState(() {
+                    _showCategoryExpenses = value == 'expense';
+                  });
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'expense',
+                    child: Row(
+                      children: [
+                        Icon(
+                          _showCategoryExpenses
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                          size: 18,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('Despesas'),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'income',
+                    child: Row(
+                      children: [
+                        Icon(
+                          !_showCategoryExpenses
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                          size: 18,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('Receitas'),
+                      ],
+                    ),
+                  ),
+                ],
+                child: Row(
+                  children: [
+                    Icon(
+                      _showCategoryExpenses
+                          ? Icons.trending_down
+                          : Icons.trending_up,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(_showCategoryExpenses ? 'Despesas' : 'Receitas'),
+                    const Icon(Icons.arrow_drop_down),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: AnimatedBarChart(
+              categoryData: _showCategoryExpenses
+                  ? summary.expensesPieChartData
+                  : summary.incomesPieChartData,
+              title: _showCategoryExpenses
+                  ? 'Despesas por Categoria'
+                  : 'Receitas por Categoria',
+              isExpense: _showCategoryExpenses,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -452,6 +616,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       child: AnimatedLineChart(
         monthlyData: summary.monthlyData,
         title: 'Tendências Mensais',
+        onAddTransaction: _showAddTransactionDialog,
       ),
     );
   }
@@ -480,9 +645,10 @@ class _DashboardScreenState extends State<DashboardScreen>
           const end = Offset.zero;
           const curve = Curves.ease;
 
-          var tween = Tween(begin: begin, end: end).chain(
-            CurveTween(curve: curve),
-          );
+          var tween = Tween(
+            begin: begin,
+            end: end,
+          ).chain(CurveTween(curve: curve));
 
           return SlideTransition(
             position: animation.drive(tween),
@@ -543,12 +709,9 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   void _showAddTransactionDialog() async {
     final result = await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const AddEditTransactionScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const AddEditTransactionScreen()),
     );
-    
-    // Se uma transação foi adicionada, recarregar os dados
+
     if (result == true && mounted) {
       context.read<FinancialProvider>().loadTransactionsFromFirestore();
     }

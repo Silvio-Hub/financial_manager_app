@@ -9,34 +9,28 @@ class UserProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _error;
 
-  // Getters
   User get user => _user;
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get hasUser => !_user.isEmpty;
 
-  // Chave para armazenamento local
   static const String _userKey = 'user_data';
 
-  // Definir loading state
   void _setLoading(bool loading) {
     _isLoading = loading;
     notifyListeners();
   }
 
-  // Definir erro
   void _setError(String? error) {
     _error = error;
     notifyListeners();
   }
 
-  // Limpar erro
   void clearError() {
     _error = null;
     notifyListeners();
   }
 
-  // Carregar dados do usuário do armazenamento local
   Future<void> loadUserFromLocal() async {
     _setLoading(true);
     _setError(null);
@@ -48,9 +42,13 @@ class UserProvider with ChangeNotifier {
       if (userJson != null) {
         final userMap = jsonDecode(userJson) as Map<String, dynamic>;
         _user = User.fromJson(userMap);
-        LoggerService.debug('Dados do usuário carregados do armazenamento local');
+        LoggerService.debug(
+          'Dados do usuário carregados do armazenamento local',
+        );
       } else {
-        LoggerService.debug('Nenhum dado de usuário encontrado no armazenamento local');
+        LoggerService.debug(
+          'Nenhum dado de usuário encontrado no armazenamento local',
+        );
         _user = User.empty();
       }
     } catch (e) {
@@ -62,7 +60,6 @@ class UserProvider with ChangeNotifier {
     }
   }
 
-  // Salvar dados do usuário no armazenamento local
   Future<void> _saveUserToLocal() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -74,7 +71,6 @@ class UserProvider with ChangeNotifier {
     }
   }
 
-  // Atualizar dados do usuário
   Future<void> updateUser({
     String? name,
     String? phone,
@@ -87,7 +83,6 @@ class UserProvider with ChangeNotifier {
     _setError(null);
 
     try {
-      // Criar usuário atualizado
       final updatedUser = _user.copyWith(
         name: name,
         phone: phone,
@@ -99,10 +94,9 @@ class UserProvider with ChangeNotifier {
       );
 
       _user = updatedUser;
-      
-      // Salvar localmente
+
       await _saveUserToLocal();
-      
+
       LoggerService.debug('Dados do usuário atualizados com sucesso');
       notifyListeners();
     } catch (e) {
@@ -113,7 +107,6 @@ class UserProvider with ChangeNotifier {
     }
   }
 
-  // Definir usuário (usado no login)
   Future<void> setUser(User user) async {
     _setLoading(true);
     _setError(null);
@@ -131,7 +124,6 @@ class UserProvider with ChangeNotifier {
     }
   }
 
-  // Criar usuário inicial (usado no registro)
   Future<void> createUser({
     required String id,
     required String email,
@@ -153,7 +145,7 @@ class UserProvider with ChangeNotifier {
 
       _user = newUser;
       await _saveUserToLocal();
-      
+
       LoggerService.debug('Novo usuário criado: $name');
       notifyListeners();
     } catch (e) {
@@ -164,7 +156,6 @@ class UserProvider with ChangeNotifier {
     }
   }
 
-  // Limpar dados do usuário (usado no logout)
   Future<void> clearUser() async {
     try {
       _user = User.empty();
@@ -177,38 +168,35 @@ class UserProvider with ChangeNotifier {
     }
   }
 
-  // Atualizar foto de perfil
   Future<void> updateProfileImage(String imageUrl) async {
     await updateUser(profileImageUrl: imageUrl);
   }
 
-  // Remover foto de perfil
   Future<void> removeProfileImage() async {
     await updateUser(profileImageUrl: null);
   }
 
-  // Validar se os dados obrigatórios estão preenchidos
   bool get isProfileComplete {
     return _user.name.isNotEmpty && _user.email.isNotEmpty;
   }
 
-  // Obter porcentagem de completude do perfil
   double get profileCompleteness {
     int filledFields = 0;
-    int totalFields = 7; // name, email, phone, birthDate, occupation, bio, profileImage
+    int totalFields = 7;
 
     if (_user.name.isNotEmpty) filledFields++;
     if (_user.email.isNotEmpty) filledFields++;
     if (_user.phone != null && _user.phone!.isNotEmpty) filledFields++;
     if (_user.birthDate != null) filledFields++;
-    if (_user.occupation != null && _user.occupation!.isNotEmpty) filledFields++;
+    if (_user.occupation != null && _user.occupation!.isNotEmpty)
+      filledFields++;
     if (_user.bio != null && _user.bio!.isNotEmpty) filledFields++;
-    if (_user.profileImageUrl != null && _user.profileImageUrl!.isNotEmpty) filledFields++;
+    if (_user.profileImageUrl != null && _user.profileImageUrl!.isNotEmpty)
+      filledFields++;
 
     return filledFields / totalFields;
   }
 
-  // Obter estatísticas do usuário
   Map<String, dynamic> get userStats {
     return {
       'profileCompleteness': (profileCompleteness * 100).round(),

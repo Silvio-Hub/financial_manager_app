@@ -3,66 +3,70 @@ import 'package:firebase_auth/firebase_auth.dart';
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Getter para o usuário atual
   User? get currentUser => _auth.currentUser;
 
-  // Stream do estado de autenticação
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  // Login com email e senha
   Future<UserCredential?> signInWithEmailAndPassword(
     String email,
     String password,
   ) async {
-    try {
-      return await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-    } catch (e) {
-      rethrow;
-    }
+    return await _auth.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
   }
 
-  // Registro com email e senha
   Future<UserCredential?> createUserWithEmailAndPassword(
     String email,
     String password,
   ) async {
-    try {
-      return await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-    } catch (e) {
-      rethrow;
-    }
+    final result = await _auth.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+    return result;
   }
 
-  // Logout
   Future<void> signOut() async {
-    try {
-      await _auth.signOut();
-    } catch (e) {
-      rethrow;
-    }
+    await _auth.signOut();
   }
 
-  // Reset de senha
   Future<void> sendPasswordResetEmail(String email) async {
-    try {
-      await _auth.sendPasswordResetEmail(email: email);
-    } catch (e) {
-      rethrow;
-    }
+    await _auth.sendPasswordResetEmail(email: email);
   }
 
-  // Verificar se o usuário está logado
   bool get isSignedIn => currentUser != null;
 
-  // Obter o ID do usuário atual
   String? get currentUserId => currentUser?.uid;
 
-  // Obter o email do usuário atual
   String? get currentUserEmail => currentUser?.email;
+
+  Future<void> updatePassword(
+    String currentPassword,
+    String newPassword,
+  ) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'user-not-signed-in',
+        message: 'Nenhum usuário autenticado.',
+      );
+    }
+
+    final email = user.email;
+    if (email == null || email.isEmpty) {
+      throw FirebaseAuthException(
+        code: 'email-not-found',
+        message: 'E-mail não disponível para reautenticação.',
+      );
+    }
+
+    final credential = EmailAuthProvider.credential(
+      email: email,
+      password: currentPassword,
+    );
+    await user.reauthenticateWithCredential(credential);
+    await user.updatePassword(newPassword);
+  }
 }

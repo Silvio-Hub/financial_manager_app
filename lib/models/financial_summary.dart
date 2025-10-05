@@ -22,10 +22,9 @@ class FinancialSummary {
     required this.periodEnd,
   });
 
-  // Getter para dados do gráfico de pizza de despesas
   List<PieChartData> get expensesPieChartData {
     if (totalExpense == 0) return [];
-    
+
     return expensesByCategory.entries.map((entry) {
       final percentage = (entry.value / totalExpense) * 100;
       return PieChartData(
@@ -38,10 +37,9 @@ class FinancialSummary {
     }).toList();
   }
 
-  // Getter para dados do gráfico de pizza de receitas
   List<PieChartData> get incomesPieChartData {
     if (totalIncome == 0) return [];
-    
+
     return incomesByCategory.entries.map((entry) {
       final percentage = (entry.value / totalIncome) * 100;
       return PieChartData(
@@ -54,27 +52,28 @@ class FinancialSummary {
     }).toList();
   }
 
-  // Criar resumo a partir de lista de transações
   factory FinancialSummary.fromTransactions(
     List<Transaction> transactions, {
     DateTime? startDate,
     DateTime? endDate,
   }) {
     final now = DateTime.now();
-    final start = startDate ?? DateTime(now.year, now.month, 1);
-    final end = endDate ?? DateTime(now.year, now.month + 1, 0);
+    final start = startDate ?? now.subtract(const Duration(days: 30));
+    final end = endDate ?? now;
 
-    // Filtrar transações por período
-    final filteredTransactions = transactions.where((t) =>
-        t.date.isAfter(start.subtract(const Duration(days: 1))) &&
-        t.date.isBefore(end.add(const Duration(days: 1)))).toList();
+    final filteredTransactions = transactions
+        .where(
+          (t) =>
+              t.date.isAfter(start.subtract(const Duration(days: 1))) &&
+              t.date.isBefore(end.add(const Duration(days: 1))),
+        )
+        .toList();
 
     double totalIncome = 0;
     double totalExpense = 0;
     Map<TransactionCategory, double> expensesByCategory = {};
     Map<TransactionCategory, double> incomesByCategory = {};
 
-    // Calcular totais e categorias
     for (final transaction in filteredTransactions) {
       if (transaction.type == TransactionType.income) {
         totalIncome += transaction.amount;
@@ -83,12 +82,17 @@ class FinancialSummary {
       } else {
         totalExpense += transaction.amount;
         expensesByCategory[transaction.category] =
-            (expensesByCategory[transaction.category] ?? 0) + transaction.amount;
+            (expensesByCategory[transaction.category] ?? 0) +
+            transaction.amount;
       }
     }
 
-    // Gerar dados mensais (últimos 6 meses)
-    final monthlyData = _generateMonthlyData(transactions, 6);
+    // Gera monthlyData respeitando o período selecionado e apenas com transações filtradas
+    final monthlyData = _generateMonthlyDataForPeriod(
+      filteredTransactions,
+      start,
+      end,
+    );
 
     return FinancialSummary(
       totalIncome: totalIncome,
@@ -102,24 +106,35 @@ class FinancialSummary {
     );
   }
 
-  static List<MonthlyData> _generateMonthlyData(
+  static List<MonthlyData> _generateMonthlyDataForPeriod(
     List<Transaction> transactions,
-    int monthsCount,
+    DateTime startDate,
+    DateTime endDate,
   ) {
-    final now = DateTime.now();
-    final monthlyData = <MonthlyData>[];
+    // Normaliza para o primeiro dia de cada mês
+    DateTime normalizedStart = DateTime(startDate.year, startDate.month, 1);
+    DateTime normalizedEnd = DateTime(endDate.year, endDate.month, 1);
 
-    for (int i = monthsCount - 1; i >= 0; i--) {
-      final month = DateTime(now.year, now.month - i, 1);
-      final nextMonth = DateTime(now.year, now.month - i + 1, 1);
+    // Garante ordem correta
+    if (normalizedStart.isAfter(normalizedEnd)) {
+      final tmp = normalizedStart;
+      normalizedStart = normalizedEnd;
+      normalizedEnd = tmp;
+    }
 
-      final monthTransactions = transactions.where((t) =>
-          t.date.isAfter(month.subtract(const Duration(days: 1))) &&
-          t.date.isBefore(nextMonth)).toList();
+    final months = <MonthlyData>[];
+    DateTime current = normalizedStart;
+    while (!current.isAfter(normalizedEnd)) {
+      final nextMonth = DateTime(current.year, current.month + 1, 1);
+
+      // Transações do mês corrente
+      final monthTransactions = transactions.where((t) {
+        return t.date.isAfter(current.subtract(const Duration(days: 1))) &&
+            t.date.isBefore(nextMonth);
+      }).toList();
 
       double income = 0;
       double expense = 0;
-
       for (final transaction in monthTransactions) {
         if (transaction.type == TransactionType.income) {
           income += transaction.amount;
@@ -128,18 +143,21 @@ class FinancialSummary {
         }
       }
 
-      monthlyData.add(MonthlyData(
-        month: month,
-        income: income,
-        expense: expense,
-        balance: income - expense,
-      ));
+      months.add(
+        MonthlyData(
+          month: current,
+          income: income,
+          expense: expense,
+          balance: income - expense,
+        ),
+      );
+
+      current = nextMonth;
     }
 
-    return monthlyData;
+    return months;
   }
 
-  // Getters úteis
   double get savingsRate {
     if (totalIncome == 0) return 0;
     return (balance / totalIncome) * 100;
@@ -182,8 +200,18 @@ class MonthlyData {
 
   String get monthName {
     const months = [
-      'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
-      'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
+      'Jan',
+      'Fev',
+      'Mar',
+      'Abr',
+      'Mai',
+      'Jun',
+      'Jul',
+      'Ago',
+      'Set',
+      'Out',
+      'Nov',
+      'Dez',
     ];
     return months[month.month - 1];
   }
@@ -194,7 +222,6 @@ class MonthlyData {
   }
 }
 
-// Classe para dados de gráfico de pizza
 class PieChartData {
   final String label;
   final double value;
@@ -211,7 +238,6 @@ class PieChartData {
   });
 }
 
-// Classe para dados de gráfico de linha
 class FinancialLineChartData {
   final DateTime date;
   final double value;

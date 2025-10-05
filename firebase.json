@@ -10,20 +10,20 @@
     "platforms": {
       "android": {
         "default": {
-          "projectId": "financialmanager-b0098",
-          "appId": "1:210776833063:android:cc5dae2442af3955682202",
+          "projectId": "financeiro-9cb44",
+          "appId": "1:973242895535:android:89bea8a65a615fd9d2d85a",
           "fileOutput": "android/app/google-services.json"
         }
       },
       "dart": {
         "lib/firebase_options.dart": {
-          "projectId": "financialmanager-b0098",
+          "projectId": "financeiro-9cb44",
           "configurations": {
-            "android": "1:210776833063:android:cc5dae2442af3955682202",
-            "ios": "1:210776833063:ios:faa1cfdb092a7c75682202",
-            "macos": "1:210776833063:ios:faa1cfdb092a7c75682202",
-            "web": "1:210776833063:web:ae4b2cb32e97c84c682202",
-            "windows": "1:210776833063:web:427d6a26a3e5c011682202"
+            "android": "1:973242895535:android:89bea8a65a615fd9d2d85a",
+            "ios": "1:973242895535:ios:dff3e1c028b4aaf0d2d85a",
+            "macos": "1:973242895535:ios:dff3e1c028b4aaf0d2d85a",
+            "web": "1:973242895535:web:521bd962dd1143cad2d85a",
+            "windows": "1:973242895535:web:52a2548eaf830a7ed2d85a"
           }
         }
       }

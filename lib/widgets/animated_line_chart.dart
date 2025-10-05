@@ -6,12 +6,18 @@ class AnimatedLineChart extends StatefulWidget {
   final List<MonthlyData> monthlyData;
   final String title;
   final double height;
+  final VoidCallback? onAddTransaction;
+  final bool yearly;
+  final bool showGranularityToggle;
 
   const AnimatedLineChart({
     super.key,
     required this.monthlyData,
     required this.title,
     this.height = 300,
+    this.onAddTransaction,
+    this.yearly = false,
+    this.showGranularityToggle = true,
   });
 
   @override
@@ -25,6 +31,45 @@ class _AnimatedLineChartState extends State<AnimatedLineChart>
   bool showIncome = true;
   bool showExpense = true;
   bool showBalance = true;
+  bool _isYearly = false;
+  int? _selectedYear;
+  static const List<String> _monthLabels = [
+    'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+    'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
+  ];
+
+  List<MonthlyData> get _dataPoints {
+    if (!_isYearly) return widget.monthlyData;
+
+    final int year = _selectedYear ??
+        (widget.monthlyData.isNotEmpty
+            ? widget.monthlyData.last.month.year
+            : DateTime.now().year);
+
+    final Map<int, MonthlyData> byMonth = {
+      for (final m
+          in widget.monthlyData.where((e) => e.month.year == year))
+        m.month.month: m,
+    };
+
+    final List<MonthlyData> fullYear = [];
+    for (int month = 1; month <= 12; month++) {
+      final existing = byMonth[month];
+      if (existing != null) {
+        fullYear.add(existing);
+      } else {
+        fullYear.add(
+          MonthlyData(
+            month: DateTime(year, month, 1),
+            income: 0,
+            expense: 0,
+            balance: 0,
+          ),
+        );
+      }
+    }
+    return fullYear;
+  }
 
   @override
   void initState() {
@@ -38,6 +83,10 @@ class _AnimatedLineChartState extends State<AnimatedLineChart>
       curve: Curves.easeInOutCubic,
     );
     _animationController.forward();
+    _isYearly = widget.yearly;
+    _selectedYear = widget.monthlyData.isNotEmpty
+        ? widget.monthlyData.last.month.year
+        : DateTime.now().year;
   }
 
   @override
@@ -48,9 +97,11 @@ class _AnimatedLineChartState extends State<AnimatedLineChart>
 
   @override
   Widget build(BuildContext context) {
-    if (widget.monthlyData.isEmpty) {
+    if (_shouldShowEmptyState()) {
       return _buildEmptyState();
     }
+
+    final bars = _buildLineBarsData();
 
     return Card(
       elevation: 4,
@@ -59,17 +110,49 @@ class _AnimatedLineChartState extends State<AnimatedLineChart>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final bool isMobileLike = constraints.maxWidth < 420;
+
+                final Widget titleWidget = Text(
                   widget.title,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                _buildLegendToggle(),
-              ],
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                );
+
+                final Widget controls = Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    if (widget.showGranularityToggle) _buildGranularityToggle(),
+                    _buildLegendToggle(),
+                  ],
+                );
+
+                if (isMobileLike) {
+                  // Em dispositivos móveis (ou largura estreita), colocar os botões abaixo do título
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      titleWidget,
+                      const SizedBox(height: 8),
+                      controls,
+                    ],
+                  );
+                }
+
+                // Em telas maiores, manter título e controles lado a lado
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(child: titleWidget),
+                    controls,
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 16),
             Expanded(
@@ -84,7 +167,9 @@ class _AnimatedLineChartState extends State<AnimatedLineChart>
                         horizontalInterval: _calculateInterval(),
                         getDrawingHorizontalLine: (value) {
                           return FlLine(
-                            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.outline.withValues(alpha: 0.2),
                             strokeWidth: 1,
                           );
                         },
@@ -118,18 +203,24 @@ class _AnimatedLineChartState extends State<AnimatedLineChart>
                         show: true,
                         border: Border(
                           bottom: BorderSide(
-                            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.outline.withValues(alpha: 0.3),
                           ),
                           left: BorderSide(
-                            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.outline.withValues(alpha: 0.3),
                           ),
                         ),
                       ),
                       minX: 0,
-                      maxX: (widget.monthlyData.length - 1).toDouble(),
+                      maxX: _dataPoints.isEmpty
+                          ? 11
+                          : (_dataPoints.length - 1).toDouble(),
                       minY: _getMinY(),
                       maxY: _getMaxY(),
-                      lineBarsData: _buildLineBarsData(),
+                      lineBarsData: bars,
                       lineTouchData: LineTouchData(
                         enabled: true,
                         touchTooltipData: LineTouchTooltipData(
@@ -153,71 +244,81 @@ class _AnimatedLineChartState extends State<AnimatedLineChart>
     final List<LineChartBarData> lines = [];
 
     if (showIncome) {
-      lines.add(LineChartBarData(
-        spots: widget.monthlyData.asMap().entries.map((entry) {
-          return FlSpot(
-            entry.key.toDouble(),
-            entry.value.income * _animation.value,
-          );
-        }).toList(),
-        isCurved: true,
-        color: Colors.green,
-        barWidth: 3,
-        isStrokeCapRound: true,
-        dotData: const FlDotData(show: true),
-        belowBarData: BarAreaData(
-          show: true,
-          color: Colors.green.withValues(alpha: 0.1),
+      lines.add(
+        LineChartBarData(
+          spots: _dataPoints.asMap().entries.map((entry) {
+            return FlSpot(entry.key.toDouble(), entry.value.income);
+          }).toList(),
+          isCurved: true,
+          color: Colors.green,
+          barWidth: 3,
+          isStrokeCapRound: true,
+          dotData: const FlDotData(show: true),
+          belowBarData: BarAreaData(
+            show: true,
+            color: Colors.green.withValues(alpha: 0.1),
+          ),
         ),
-      ));
+      );
     }
 
     if (showExpense) {
-      lines.add(LineChartBarData(
-        spots: widget.monthlyData.asMap().entries.map((entry) {
-          return FlSpot(
-            entry.key.toDouble(),
-            entry.value.expense * _animation.value,
-          );
-        }).toList(),
-        isCurved: true,
-        color: Colors.red,
-        barWidth: 3,
-        isStrokeCapRound: true,
-        dotData: const FlDotData(show: true),
-        belowBarData: BarAreaData(
-          show: true,
-          color: Colors.red.withValues(alpha: 0.1),
+      lines.add(
+        LineChartBarData(
+          spots: _dataPoints.asMap().entries.map((entry) {
+            return FlSpot(entry.key.toDouble(), entry.value.expense);
+          }).toList(),
+          isCurved: true,
+          color: Colors.red,
+          barWidth: 3,
+          isStrokeCapRound: true,
+          dotData: const FlDotData(show: true),
+          belowBarData: BarAreaData(
+            show: true,
+            color: Colors.red.withValues(alpha: 0.1),
+          ),
         ),
-      ));
+      );
     }
 
     if (showBalance) {
-      lines.add(LineChartBarData(
-        spots: widget.monthlyData.asMap().entries.map((entry) {
-          return FlSpot(
-            entry.key.toDouble(),
-            entry.value.balance * _animation.value,
-          );
-        }).toList(),
-        isCurved: true,
-        color: Colors.blue,
-        barWidth: 3,
-        isStrokeCapRound: true,
-        dotData: const FlDotData(show: true),
-        dashArray: [5, 5],
-      ));
+      lines.add(
+        LineChartBarData(
+          spots: _dataPoints.asMap().entries.map((entry) {
+            return FlSpot(entry.key.toDouble(), entry.value.balance);
+          }).toList(),
+          isCurved: true,
+          color: Colors.blue,
+          barWidth: 3,
+          isStrokeCapRound: true,
+          dotData: const FlDotData(show: true),
+          dashArray: [5, 5],
+        ),
+      );
     }
 
     return lines;
   }
 
   Widget _buildBottomTitles(double value, TitleMeta meta) {
-    if (value.toInt() >= 0 && value.toInt() < widget.monthlyData.length) {
+    final index = value.toInt();
+    if (_dataPoints.isEmpty) {
+      if (index >= 0 && index < 12) {
+        return SideTitleWidget(
+          axisSide: meta.axisSide,
+          child: Text(
+            _monthLabels[index],
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        );
+      }
+      return const SizedBox.shrink();
+    }
+    if (index >= 0 && index < _dataPoints.length) {
       return SideTitleWidget(
         axisSide: meta.axisSide,
         child: Text(
-          widget.monthlyData[value.toInt()].monthName,
+          _dataPoints[index].monthName,
           style: Theme.of(context).textTheme.bodySmall,
         ),
       );
@@ -237,7 +338,7 @@ class _AnimatedLineChartState extends State<AnimatedLineChart>
 
   List<LineTooltipItem> _buildTooltipItems(List<LineBarSpot> touchedSpots) {
     return touchedSpots.map((LineBarSpot touchedSpot) {
-      final monthData = widget.monthlyData[touchedSpot.x.toInt()];
+      final monthData = _dataPoints[touchedSpot.x.toInt()];
       String label = '';
       Color color = Colors.black;
 
@@ -245,7 +346,7 @@ class _AnimatedLineChartState extends State<AnimatedLineChart>
         label = 'Receita: ${_formatCurrency(monthData.income)}';
         color = Colors.green;
       } else if ((touchedSpot.barIndex == 1 && showIncome && showExpense) ||
-                 (touchedSpot.barIndex == 0 && !showIncome && showExpense)) {
+          (touchedSpot.barIndex == 0 && !showIncome && showExpense)) {
         label = 'Despesa: ${_formatCurrency(monthData.expense)}';
         color = Colors.red;
       } else {
@@ -255,10 +356,7 @@ class _AnimatedLineChartState extends State<AnimatedLineChart>
 
       return LineTooltipItem(
         '${monthData.monthName}\\n$label',
-        TextStyle(
-          color: color,
-          fontWeight: FontWeight.bold,
-        ),
+        TextStyle(color: color, fontWeight: FontWeight.bold),
       );
     }).toList();
   }
@@ -358,20 +456,34 @@ class _AnimatedLineChartState extends State<AnimatedLineChart>
     );
   }
 
+  // Determina quando mostrar o estado vazio (sem dados do usuário)
+  bool _shouldShowEmptyState() {
+    if (widget.monthlyData.isEmpty) return true;
+    final hasIncome = widget.monthlyData.any((m) => m.income != 0);
+    final hasExpense = widget.monthlyData.any((m) => m.expense != 0);
+    final hasBalance = widget.monthlyData.any((m) => m.balance != 0);
+    return !(hasIncome || hasExpense || hasBalance);
+  }
+
+  // Estado vazio consistente com outros gráficos
   Widget _buildEmptyState() {
     return Card(
       elevation: 4,
       child: Padding(
-        padding: const EdgeInsets.all(32.0),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
               widget.title,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
             Icon(
               Icons.show_chart,
               size: 64,
@@ -381,40 +493,70 @@ class _AnimatedLineChartState extends State<AnimatedLineChart>
             Text(
               'Nenhum dado disponível',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(context).colorScheme.outline,
-              ),
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+              textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 8),
+            Text(
+              'Adicione algumas transações para ver os gráficos',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            if (widget.onAddTransaction != null)
+              Align(
+                alignment: Alignment.center,
+                child: ElevatedButton.icon(
+                  onPressed: widget.onAddTransaction,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Adicionar transação'),
+                ),
+              ),
           ],
         ),
       ),
     );
   }
+ 
+  // _buildEmptyState removido por não ser mais utilizado
 
   double _getMinY() {
-    if (widget.monthlyData.isEmpty) return 0;
-    
+    if (_dataPoints.isEmpty) return 0;
+
     double min = 0;
-    for (final data in widget.monthlyData) {
+    for (final data in _dataPoints) {
       if (showBalance && data.balance < min) min = data.balance;
     }
-    return min * 1.1; // 10% de margem
+    return min * 1.1;
   }
 
   double _getMaxY() {
-    if (widget.monthlyData.isEmpty) return 100;
-    
+    if (_dataPoints.isEmpty) return 100;
+
     double max = 0;
-    for (final data in widget.monthlyData) {
+    for (final data in _dataPoints) {
       if (showIncome && data.income > max) max = data.income;
       if (showExpense && data.expense > max) max = data.expense;
       if (showBalance && data.balance > max) max = data.balance;
     }
-    return max * 1.1; // 10% de margem
+
+    // Evita range Y nulo quando todos os valores são zero
+    final expandedMax = max * 1.1;
+    if (expandedMax <= 0) {
+      return 10; // range mínimo para que o gráfico apareça
+    }
+    return expandedMax;
   }
 
   double _calculateInterval() {
     final range = _getMaxY() - _getMinY();
-    return range / 5; // 5 linhas de grade
+    if (range <= 0) {
+      return 1;
+    }
+    return range / 5;
   }
 
   String _formatCurrency(double value) {
@@ -423,4 +565,26 @@ class _AnimatedLineChartState extends State<AnimatedLineChart>
     }
     return 'R\$ ${value.toStringAsFixed(0)}';
   }
+
+  Widget _buildGranularityToggle() {
+    return ToggleButtons(
+      isSelected: [_isYearly == false, _isYearly == true],
+      onPressed: (index) {
+        setState(() {
+          _isYearly = index == 1;
+        });
+        _animationController
+          ..reset()
+          ..forward();
+      },
+      constraints: const BoxConstraints(minHeight: 32, minWidth: 64),
+      borderRadius: BorderRadius.circular(8),
+      children: const [
+        Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('Mensal')),
+        Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('Anual')),
+      ],
+    );
+  }
 }
+
+// Modo anual exibe meses Jan–Dez do ano selecionado

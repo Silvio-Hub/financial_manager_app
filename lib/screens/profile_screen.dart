@@ -18,7 +18,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    // Carregar dados do usuário ao inicializar a tela
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<UserProvider>().loadUserFromLocal();
     });
@@ -27,10 +26,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const CustomAppBar(
-        title: 'Perfil',
-        showBackButton: true,
-      ),
+      appBar: const CustomAppBar(title: 'Perfil', showBackButton: true),
       body: Consumer<UserProvider>(
         builder: (context, userProvider, child) {
           if (userProvider.isLoading) {
@@ -42,7 +38,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
 
           final user = userProvider.user;
-          
+
           if (user.isEmpty) {
             return _buildEmptyState();
           }
@@ -63,11 +59,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.error_outline,
-            size: 64,
-            color: Colors.red[300],
-          ),
+          Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
           const SizedBox(height: 16),
           Text(
             'Erro ao carregar perfil',
@@ -96,11 +88,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.person_outline,
-            size: 64,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.person_outline, size: 64, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
             'Perfil não encontrado',
@@ -131,7 +119,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildProfileStats(userProvider),
           const SizedBox(height: 24),
           _buildProfileDetails(user),
-          const SizedBox(height: 80), // Espaço para o FAB
+          const SizedBox(height: 80),
         ],
       ),
     );
@@ -148,17 +136,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 16),
             Text(
               user.name.isNotEmpty ? user.name : 'Nome não informado',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
               user.email,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Colors.grey[600],
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
               textAlign: TextAlign.center,
             ),
             if (user.occupation != null && user.occupation!.isNotEmpty) ...[
@@ -183,7 +171,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         CircleAvatar(
           radius: 50,
-          backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+          backgroundColor: Theme.of(
+            context,
+          ).primaryColor.withValues(alpha: 0.1),
           backgroundImage: user.profileImageUrl != null
               ? NetworkImage(user.profileImageUrl!)
               : null,
@@ -207,11 +197,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               color: Theme.of(context).primaryColor,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.camera_alt,
-              size: 16,
-              color: Colors.white,
-            ),
+            child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
           ),
         ),
       ],
@@ -221,7 +207,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildProfileStats(UserProvider userProvider) {
     final stats = userProvider.userStats;
     final completeness = stats['profileCompleteness'] as int;
-    
+
     return Card(
       elevation: 2,
       child: Padding(
@@ -231,9 +217,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Text(
               'Estatísticas do Perfil',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             Row(
@@ -249,9 +235,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 8),
                       Text(
                         '$completeness%',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       Text(
                         'Completo',
@@ -277,10 +262,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       if (stats['age'] != null) ...[
                         const SizedBox(height: 8),
-                        _buildStatItem(
-                          'Idade',
-                          '${stats['age']} anos',
-                        ),
+                        _buildStatItem('Idade', '${stats['age']} anos'),
                       ],
                     ],
                   ),
@@ -299,16 +281,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         Text(
           '$label: ',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Colors.grey[600],
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
         ),
         Expanded(
           child: Text(
             value,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.w500,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
           ),
         ),
       ],
@@ -325,9 +307,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Text(
               'Informações Pessoais',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             _buildDetailItem(
@@ -375,11 +357,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            size: 20,
-            color: Theme.of(context).primaryColor,
-          ),
+          Icon(icon, size: 20, color: Theme.of(context).primaryColor),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -414,9 +392,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _navigateToEditProfile() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const EditProfileScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const EditProfileScreen()),
     );
   }
 }

@@ -20,7 +20,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _phoneController = TextEditingController();
   final _occupationController = TextEditingController();
   final _bioController = TextEditingController();
-  
+
   DateTime? _selectedBirthDate;
   bool _isLoading = false;
 
@@ -115,9 +115,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           children: [
             Text(
               'Foto de Perfil',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             Center(
@@ -125,7 +125,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 children: [
                   CircleAvatar(
                     radius: 50,
-                    backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                    backgroundColor: Theme.of(
+                      context,
+                    ).primaryColor.withValues(alpha: 0.1),
                     backgroundImage: user.profileImageUrl != null
                         ? NetworkImage(user.profileImageUrl!)
                         : null,
@@ -166,9 +168,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             const SizedBox(height: 8),
             Text(
               'Toque no ícone para alterar',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.grey[600],
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
             ),
           ],
         ),
@@ -186,9 +188,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           children: [
             Text(
               'Informações Pessoais',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             CustomTextField(
@@ -235,9 +237,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           children: [
             Text(
               'Informações de Contato',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             CustomTextField(
@@ -247,7 +249,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               keyboardType: TextInputType.phone,
               validator: (value) {
                 if (value != null && value.isNotEmpty) {
-                  // Remove caracteres não numéricos para validação
                   final numbersOnly = value.replaceAll(RegExp(r'[^\d]'), '');
                   if (numbersOnly.length < 10 || numbersOnly.length > 11) {
                     return 'Telefone deve ter 10 ou 11 dígitos';
@@ -272,9 +273,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           children: [
             Text(
               'Informações Adicionais',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             CustomTextField(
@@ -307,10 +308,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
         child: Row(
           children: [
-            Icon(
-              Icons.cake,
-              color: Theme.of(context).primaryColor,
-            ),
+            Icon(Icons.cake, color: Theme.of(context).primaryColor),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -318,9 +316,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 children: [
                   Text(
                     'Data de Nascimento',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -336,11 +334,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ],
               ),
             ),
-            Icon(
-              Icons.calendar_today,
-              color: Colors.grey[400],
-              size: 20,
-            ),
+            Icon(Icons.calendar_today, color: Colors.grey[400], size: 20),
           ],
         ),
       ),
@@ -354,9 +348,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         onPressed: _isLoading ? null : _saveProfile,
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         child: _isLoading
             ? const SizedBox(
@@ -369,10 +361,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               )
             : const Text(
                 'Salvar Alterações',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
       ),
     );
@@ -381,7 +370,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _selectBirthDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _selectedBirthDate ?? DateTime.now().subtract(const Duration(days: 365 * 25)),
+      initialDate:
+          _selectedBirthDate ??
+          DateTime.now().subtract(const Duration(days: 365 * 25)),
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
     );
@@ -433,7 +424,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   void _pickImageFromGallery() {
-    // TODO: Implementar seleção de imagem da galeria
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Funcionalidade de galeria será implementada em breve'),
@@ -442,7 +432,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   void _pickImageFromCamera() {
-    // TODO: Implementar captura de imagem da câmera
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Funcionalidade de câmera será implementada em breve'),
@@ -452,11 +441,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   void _removeProfileImage() {
     context.read<UserProvider>().removeProfileImage();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Foto de perfil removida'),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Foto de perfil removida')));
   }
 
   Future<void> _saveProfile() async {
@@ -470,13 +457,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     try {
       final userProvider = context.read<UserProvider>();
-      
+
       await userProvider.updateUser(
         name: _nameController.text.trim(),
-        phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+        phone: _phoneController.text.trim().isEmpty
+            ? null
+            : _phoneController.text.trim(),
         birthDate: _selectedBirthDate,
-        occupation: _occupationController.text.trim().isEmpty ? null : _occupationController.text.trim(),
-        bio: _bioController.text.trim().isEmpty ? null : _bioController.text.trim(),
+        occupation: _occupationController.text.trim().isEmpty
+            ? null
+            : _occupationController.text.trim(),
+        bio: _bioController.text.trim().isEmpty
+            ? null
+            : _bioController.text.trim(),
       );
 
       if (mounted) {

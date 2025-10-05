@@ -25,20 +25,18 @@ class User {
     required this.updatedAt,
   });
 
-  // Construtor para criar um usuário vazio/padrão
   User.empty()
-      : id = '',
-        email = '',
-        name = '',
-        phone = null,
-        profileImageUrl = null,
-        birthDate = null,
-        occupation = null,
-        bio = null,
-        createdAt = DateTime.now(),
-        updatedAt = DateTime.now();
+    : id = '',
+      email = '',
+      name = '',
+      phone = null,
+      profileImageUrl = null,
+      birthDate = null,
+      occupation = null,
+      bio = null,
+      createdAt = DateTime.now(),
+      updatedAt = DateTime.now();
 
-  // Converter de Map para User (Firestore)
   factory User.fromMap(Map<String, dynamic> map) {
     return User(
       id: map['id'] ?? '',
@@ -46,21 +44,20 @@ class User {
       name: map['name'] ?? '',
       phone: map['phone'],
       profileImageUrl: map['profileImageUrl'],
-      birthDate: map['birthDate'] != null 
+      birthDate: map['birthDate'] != null
           ? (map['birthDate'] as Timestamp).toDate()
           : null,
       occupation: map['occupation'],
       bio: map['bio'],
-      createdAt: map['createdAt'] != null 
+      createdAt: map['createdAt'] != null
           ? (map['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
-      updatedAt: map['updatedAt'] != null 
+      updatedAt: map['updatedAt'] != null
           ? (map['updatedAt'] as Timestamp).toDate()
           : DateTime.now(),
     );
   }
 
-  // Converter de Map para User (JSON/Local Storage)
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: json['id'] ?? '',
@@ -68,21 +65,20 @@ class User {
       name: json['name'] ?? '',
       phone: json['phone'],
       profileImageUrl: json['profileImageUrl'],
-      birthDate: json['birthDate'] != null 
+      birthDate: json['birthDate'] != null
           ? DateTime.parse(json['birthDate'])
           : null,
       occupation: json['occupation'],
       bio: json['bio'],
-      createdAt: json['createdAt'] != null 
+      createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'])
           : DateTime.now(),
-      updatedAt: json['updatedAt'] != null 
+      updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'])
           : DateTime.now(),
     );
   }
 
-  // Converter de User para Map (Firestore)
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -98,7 +94,6 @@ class User {
     };
   }
 
-  // Converter de User para JSON (Local Storage)
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -114,7 +109,6 @@ class User {
     };
   }
 
-  // Criar uma cópia do usuário com campos atualizados
   User copyWith({
     String? id,
     String? email,
@@ -141,25 +135,23 @@ class User {
     );
   }
 
-  // Verificar se o usuário está vazio
   bool get isEmpty => id.isEmpty && email.isEmpty && name.isEmpty;
 
-  // Obter iniciais do nome para avatar
   String get initials {
     if (name.isEmpty) return '';
     final names = name.split(' ');
     if (names.length == 1) {
       return names[0].substring(0, 1).toUpperCase();
     }
-    return '${names[0].substring(0, 1)}${names[1].substring(0, 1)}'.toUpperCase();
+    return '${names[0].substring(0, 1)}${names[1].substring(0, 1)}'
+        .toUpperCase();
   }
 
-  // Obter idade baseada na data de nascimento
   int? get age {
     if (birthDate == null) return null;
     final now = DateTime.now();
     int age = now.year - birthDate!.year;
-    if (now.month < birthDate!.month || 
+    if (now.month < birthDate!.month ||
         (now.month == birthDate!.month && now.day < birthDate!.day)) {
       age--;
     }

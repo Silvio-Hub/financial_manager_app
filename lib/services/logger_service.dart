@@ -1,22 +1,30 @@
 class LoggerService {
-  // Logs desabilitados para produção
+  
+
+  static void _log(String level, String message) {
+    
+    return;
+  }
+
   static void debug(String message) {
-    // Log removido para produção
+    _log('DEBUG', message);
   }
 
   static void info(String message) {
-    // Log removido para produção
+    _log('INFO', message);
   }
 
   static void warning(String message) {
-    // Log removido para produção
+    _log('WARN', message);
   }
 
   static void error(String message, [dynamic error, StackTrace? stackTrace]) {
-    // Log removido para produção
+    final extra = error != null ? ' | error=$error' : '';
+    final st = stackTrace != null ? '\n$stackTrace' : '';
+    _log('ERROR', '$message$extra$st');
   }
 
   static void verbose(String message) {
-    // Log removido para produção
+    _log('VERBOSE', message);
   }
 }

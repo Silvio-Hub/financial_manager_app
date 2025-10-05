@@ -66,8 +66,12 @@ dependencies:
   image_picker: ^1.1.2
   path: ^1.9.0
   
+  # PDF viewer
+  syncfusion_flutter_pdfviewer: ^31.1.22
+  
   # Logging
   logger: ^2.4.0
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

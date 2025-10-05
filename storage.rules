@@ -1,15 +1,26 @@
 rules_version = '2';
-
-// Regras de segurança para Firebase Storage
 service firebase.storage {
   match /b/{bucket}/o {
-    // Regras para recibos dos usuários
-    match /receipts/{userId}/{transactionId}/{fileName} {
-      // Permitir leitura e escrita apenas para o próprio usuário autenticado
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    // Recibos: permitir somente ao usuário autenticado dono do caminho
+    // Use {allPaths=**} para cobrir listagem da pasta da transação e arquivos dentro dela
+    match /receipts/{uid}/{transactionId}/{allPaths=**} {
+      // Leitura (inclui listagem): apenas usuário autenticado e dono
+      allow read: if request.auth != null && request.auth.uid == uid;
+      // Criação (upload): usuário autenticado, dono, tamanho < 20MB e tipo válido (imagem/PDF)
+      allow create: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.size < 20 * 1024 * 1024
+                    && (request.resource.contentType.matches('image/.*')
+                        || request.resource.contentType == 'application/pdf');
+
+      // Deleção: permitir ao dono do arquivo
+      allow delete: if request.auth != null && request.auth.uid == uid;
+
+      // Atualização: opcional, permitir apenas ao dono (metadados)
+      allow update: if request.auth != null && request.auth.uid == uid;
     }
-    
-    // Negar acesso a todos os outros arquivos
+
+    // Negar acesso ao restante
     match /{allPaths=**} {
       allow read, write: if false;
     }

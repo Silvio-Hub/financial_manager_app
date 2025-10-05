@@ -14,21 +14,18 @@ import 'themes/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Verificar se o Firebase já foi inicializado
+
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
   } catch (e) {
-    // Se o Firebase já foi inicializado, continuar normalmente
     if (e.toString().contains('duplicate-app')) {
-      // Firebase já foi inicializado, continuar normalmente
     } else {
       rethrow;
     }
   }
-  
+
   runApp(const FinancialManagerApp());
 }
 
@@ -64,10 +61,7 @@ class FinancialManagerApp extends StatelessWidget {
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
-            supportedLocales: const [
-              Locale('pt', 'BR'),
-              Locale('en', 'US'),
-            ],
+            supportedLocales: const [Locale('pt', 'BR'), Locale('en', 'US')],
             locale: const Locale('pt', 'BR'),
             home: const AuthWrapper(),
           );
@@ -88,7 +82,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
   @override
   void initState() {
     super.initState();
-    // Conectar os providers após a inicialização
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = context.read<AuthProvider>();
       final userProvider = context.read<UserProvider>();
@@ -100,21 +93,16 @@ class _AuthWrapperState extends State<AuthWrapper> {
   Widget build(BuildContext context) {
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
-        // Mostrar loading enquanto verifica o estado de autenticação
         if (authProvider.isLoading) {
           return const Scaffold(
-            body: Center(
-              child: CircularProgressIndicator(),
-            ),
+            body: Center(child: CircularProgressIndicator()),
           );
         }
-        
-        // Se usuário está logado, mostrar dashboard
+
         if (authProvider.isAuthenticated) {
           return const DashboardScreen();
         }
-        
-        // Se não está logado, mostrar tela de login
+
         return const LoginScreen();
       },
     );

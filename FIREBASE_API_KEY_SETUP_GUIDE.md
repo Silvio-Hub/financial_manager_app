@@ -18,7 +18,7 @@ As API keys no projeto são placeholders (exemplos) e não são chaves reais vá
 
 1. Acesse [Firebase Console](https://console.firebase.google.com/)
 2. Faça login com sua conta Google
-3. Selecione o projeto `financialmanager-b0098`
+3. Selecione o projeto `financeiro-9cb44`
 
 ### Passo 2: Verificar/Criar Aplicativos
 
@@ -46,9 +46,9 @@ As API keys no projeto são placeholders (exemplos) e não são chaves reais vá
 ```json
 {
   "project_info": {
-    "project_number": "210776833063",
-    "project_id": "financialmanager-b0098",
-    "storage_bucket": "financialmanager-b0098.firebasestorage.app"
+    "project_number": "973242895535",
+    "project_id": "financeiro-9cb44",
+    "storage_bucket": "financeiro-9cb44.appspot.com"
   },
   "client": [
     {
@@ -102,17 +102,17 @@ class DefaultFirebaseOptions {
     apiKey: 'SUA_API_KEY_WEB_AQUI',
     appId: '1:210776833063:web:ae4b2cb32e97c84c682202',
     messagingSenderId: '210776833063',
-    projectId: 'financialmanager-b0098',
-    authDomain: 'financialmanager-b0098.firebaseapp.com',
-    storageBucket: 'financialmanager-b0098.appspot.com',
+    projectId: 'financeiro-9cb44',
+    authDomain: 'financeiro-9cb44.firebaseapp.com',
+    storageBucket: 'financeiro-9cb44.appspot.com',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'SUA_API_KEY_ANDROID_AQUI',
     appId: '1:210776833063:android:cc5dae2442af3955682202',
     messagingSenderId: '210776833063',
-    projectId: 'financialmanager-b0098',
-    storageBucket: 'financialmanager-b0098.appspot.com',
+    projectId: 'financeiro-9cb44',
+    storageBucket: 'financeiro-9cb44.appspot.com',
   );
 
   // ... outras plataformas

@@ -31,7 +31,7 @@ E/StorageException: Code: -13040 HttpResult: 0
 
 ### Passo 1: Habilitar Firebase Storage
 1. Acesse o [Console do Firebase](https://console.firebase.google.com)
-2. Selecione o projeto `financialmanager-b0098`
+2. Selecione o projeto `financeiro-9cb44`
 3. No menu lateral, clique em **"Storage"**
 4. Clique em **"Começar"** ou **"Get Started"**
 5. Escolha o modo de teste (temporário) ou produção
@@ -110,7 +110,7 @@ Verifique se:
 
 ## 🆘 Se o Problema Persistir
 
-1. Verifique se está usando o projeto correto (`financialmanager-b0098`)
+1. Verifique se está usando o projeto correto (`financeiro-9cb44`)
 2. Confirme se o usuário está autenticado
 3. Teste com um arquivo pequeno (< 1MB)
 4. Verifique a conexão com a internet

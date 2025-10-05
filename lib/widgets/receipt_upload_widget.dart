@@ -1,9 +1,16 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import '../screens/login_screen.dart';
 import '../services/storage_service.dart';
+import '../services/logger_service.dart';
 
 class ReceiptUploadWidget extends StatefulWidget {
   final String? transactionId;
@@ -25,6 +32,51 @@ class _ReceiptUploadWidgetState extends State<ReceiptUploadWidget> {
   List<ReceiptInfo> _receipts = [];
   bool _isLoading = false;
   bool _isUploading = false;
+
+  Future<bool> _ensureAuthenticated() async {
+    try {
+      final authProvider = context.read<AuthProvider>();
+      if (!authProvider.isAuthenticated) {
+        try {
+          LoggerService.warning(
+            'Upload bloqueado: usuário não autenticado. Redirecionando para login.',
+          );
+        } catch (_) {}
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Faça login para enviar recibos.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const LoginScreen()));
+        }
+        return false;
+      }
+      return true;
+    } catch (e) {
+      final signedIn = StorageService.isUserAuthenticated;
+      if (!signedIn && mounted) {
+        try {
+          LoggerService.warning(
+            'Provider indisponível para auth; fallback indica não autenticado.',
+          );
+        } catch (_) {}
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Faça login para enviar recibos.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const LoginScreen()));
+      }
+      return signedIn;
+    }
+  }
 
   @override
   void initState() {
@@ -56,7 +108,9 @@ class _ReceiptUploadWidgetState extends State<ReceiptUploadWidget> {
     });
 
     try {
-      final receipts = await StorageService.getTransactionReceipts(widget.transactionId!);
+      final receipts = await StorageService.getTransactionReceipts(
+        widget.transactionId!,
+      );
       setState(() {
         _receipts = receipts;
       });
@@ -78,7 +132,10 @@ class _ReceiptUploadWidgetState extends State<ReceiptUploadWidget> {
   }
 
   Future<void> _pickAndUploadFile() async {
+    LoggerService.info('=== INICIANDO SELEÇÃO DE ARQUIVO ===');
+
     if (widget.transactionId == null) {
+      LoggerService.warning('TransactionId é null');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Salve a transação primeiro para adicionar recibos'),
@@ -88,9 +145,17 @@ class _ReceiptUploadWidgetState extends State<ReceiptUploadWidget> {
       return;
     }
 
+    final isAuth = await _ensureAuthenticated();
+    if (!isAuth) {
+      return;
+    }
+
+    LoggerService.info('TransactionId: ${widget.transactionId}');
+
     try {
-      // Mostrar opções de seleção
+      LoggerService.info('Mostrando opções de seleção...');
       final source = await _showSourceSelection();
+      LoggerService.info('Fonte selecionada: $source');
       if (source == null) return;
 
       setState(() {
@@ -102,7 +167,7 @@ class _ReceiptUploadWidgetState extends State<ReceiptUploadWidget> {
       String fileExtension;
 
       if (source == 'camera' || source == 'gallery') {
-        // Usar ImagePicker para câmera ou galeria
+        LoggerService.info('Usando ImagePicker para $source');
         final picker = ImagePicker();
         final XFile? pickedFile = await picker.pickImage(
           source: source == 'camera' ? ImageSource.camera : ImageSource.gallery,
@@ -111,22 +176,40 @@ class _ReceiptUploadWidgetState extends State<ReceiptUploadWidget> {
           imageQuality: 85,
         );
 
-        if (pickedFile == null) return;
+        if (pickedFile == null) {
+          LoggerService.info('Nenhum arquivo selecionado');
+          return;
+        }
 
         fileName = pickedFile.name;
         fileExtension = fileName.split('.').last.toLowerCase();
+        LoggerService.info('Arquivo selecionado: $fileName (.$fileExtension)');
 
         if (kIsWeb) {
+          LoggerService.info('Lendo arquivo como bytes (Web)');
           file = await pickedFile.readAsBytes();
         } else {
+          LoggerService.info(
+            'Criando File object (Mobile): ${pickedFile.path}',
+          );
           file = File(pickedFile.path);
         }
       } else {
-        // Usar FilePicker para documentos
         final result = await FilePicker.platform.pickFiles(
           type: FileType.custom,
-          allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'],
+          allowedExtensions: [
+            'pdf',
+            'jpg',
+            'jpeg',
+            'png',
+            'gif',
+            'bmp',
+            'webp',
+            'heic',
+            'heif',
+          ],
           allowMultiple: false,
+          withData: true,
         );
 
         if (result == null || result.files.isEmpty) return;
@@ -138,24 +221,67 @@ class _ReceiptUploadWidgetState extends State<ReceiptUploadWidget> {
         if (kIsWeb) {
           file = pickedFile.bytes;
         } else {
-          file = File(pickedFile.path!);
+          if (pickedFile.bytes != null) {
+            LoggerService.info(
+              'Arquivo de documentos (mobile) usando bytes (${pickedFile.bytes!.length} bytes)',
+            );
+            file = pickedFile.bytes!;
+          } else if (pickedFile.path != null && pickedFile.path!.isNotEmpty) {
+            LoggerService.info(
+              'Arquivo de documentos com path: ${pickedFile.path}',
+            );
+            file = File(pickedFile.path!);
+          } else {
+            LoggerService.error(
+              'Nenhum path ou bytes disponíveis para o arquivo selecionado',
+            );
+            throw Exception(
+              'Não foi possível acessar o arquivo selecionado. Tente novamente.',
+            );
+          }
         }
       }
 
-      // Verificar se o arquivo é suportado
+      LoggerService.info('Verificando se arquivo é suportado...');
       if (!StorageService.isSupportedFile(fileName)) {
-        throw Exception('Tipo de arquivo não suportado. Use apenas imagens (JPG, PNG, etc.) ou PDF.');
+        LoggerService.error('Tipo de arquivo não suportado: $fileName');
+        throw Exception(
+          'Tipo de arquivo não suportado. Use apenas imagens (JPG, PNG, etc.) ou PDF.',
+        );
       }
+      LoggerService.info('Arquivo suportado, iniciando upload...');
 
-      // Fazer upload
+      LoggerService.info('Checando conectividade com Firebase Storage...');
+      final storageOk = await StorageService.checkStorageConnection(
+        transactionId: widget.transactionId,
+      );
+      if (!storageOk) {
+        LoggerService.warning('Conectividade com Storage falhou');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Falha ao conectar ao Firebase Storage. Verifique CORS, regras e login.',
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+      LoggerService.info(
+        'Conectividade com Storage OK, prosseguindo com upload',
+      );
+
+      LoggerService.info('Chamando StorageService.uploadReceipt...');
       await StorageService.uploadReceipt(
         file: file,
         fileName: fileName,
         transactionId: widget.transactionId!,
         fileExtension: fileExtension,
       );
+      LoggerService.info('Upload concluído com sucesso!');
 
-      // Recarregar lista de recibos
       await _loadReceipts();
 
       if (mounted) {
@@ -243,6 +369,14 @@ class _ReceiptUploadWidgetState extends State<ReceiptUploadWidget> {
         fileName: receipt.name,
       );
 
+      try {
+        await StorageService.deleteLocalReceipt(receipt.url);
+      } catch (e) {
+        LoggerService.warning(
+          'Falha ao remover documento de recibo no Firestore: $e',
+        );
+      }
+
       await _loadReceipts();
 
       if (mounted) {
@@ -283,13 +417,10 @@ class _ReceiptUploadWidgetState extends State<ReceiptUploadWidget> {
           children: [
             const Text(
               'Recibos',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const Spacer(),
-            if (!widget.readOnly)
+            if (!widget.readOnly) ...[
               TextButton.icon(
                 onPressed: _isUploading ? null : _pickAndUploadFile,
                 icon: _isUploading
@@ -301,6 +432,7 @@ class _ReceiptUploadWidgetState extends State<ReceiptUploadWidget> {
                     : const Icon(Icons.add),
                 label: Text(_isUploading ? 'Enviando...' : 'Adicionar'),
               ),
+            ],
           ],
         ),
         const SizedBox(height: 8),
@@ -321,18 +453,11 @@ class _ReceiptUploadWidgetState extends State<ReceiptUploadWidget> {
             ),
             child: Column(
               children: [
-                Icon(
-                  Icons.receipt_long,
-                  size: 48,
-                  color: Colors.grey.shade400,
-                ),
+                Icon(Icons.receipt_long, size: 48, color: Colors.grey.shade400),
                 const SizedBox(height: 8),
                 Text(
                   'Nenhum recibo adicionado',
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                 ),
               ],
             ),
@@ -366,10 +491,7 @@ class _ReceiptUploadWidgetState extends State<ReceiptUploadWidget> {
                   ),
                   subtitle: Text(
                     '${receipt.formattedSize} • ${_formatDate(receipt.uploadDate)}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -402,74 +524,352 @@ class _ReceiptUploadWidgetState extends State<ReceiptUploadWidget> {
   }
 }
 
-class ReceiptViewerScreen extends StatelessWidget {
+class ReceiptViewerScreen extends StatefulWidget {
   final ReceiptInfo receipt;
 
-  const ReceiptViewerScreen({
-    super.key,
-    required this.receipt,
-  });
+  const ReceiptViewerScreen({super.key, required this.receipt});
+
+  @override
+  State<ReceiptViewerScreen> createState() => _ReceiptViewerScreenState();
+}
+
+class _ReceiptViewerScreenState extends State<ReceiptViewerScreen> {
+  String? _base64Data;
+  String? _transactionId;
+  bool _isLoading = true;
+  String? _errorMessage;
+  String? _downloadUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReceiptData();
+  }
+
+  String _normalizeBase64(String input) {
+    String cleaned = input.trim();
+    final commaIndex = cleaned.indexOf(',');
+    if (commaIndex != -1 &&
+        cleaned.substring(0, commaIndex).toLowerCase().contains('base64')) {
+      cleaned = cleaned.substring(commaIndex + 1);
+    }
+    cleaned = cleaned.replaceAll(RegExp(r"\s"), '');
+
+    cleaned = cleaned.replaceAll('-', '+').replaceAll('_', '/');
+
+    final mod = cleaned.length % 4;
+    if (mod != 0) {
+      cleaned = cleaned.padRight(cleaned.length + (4 - mod), '=');
+    }
+
+    return cleaned;
+  }
+
+  Future<void> _loadReceiptData() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      try {
+        LoggerService.info(
+          'ReceiptViewer: iniciando carregamento id=${widget.receipt.url}, fileName=${widget.receipt.name}, contentType=${widget.receipt.contentType}, isImage=${widget.receipt.isImage}',
+        );
+      } catch (_) {}
+
+      final receiptData = await StorageService.getLocalReceipt(
+        widget.receipt.url,
+        fileName: widget.receipt.name,
+      );
+
+      if (receiptData != null) {
+        final txnId = receiptData['transactionId'] as String?;
+        final dlUrl = receiptData['downloadUrl'] as String?;
+        setState(() {
+          _transactionId = txnId;
+          _downloadUrl = dlUrl ?? _downloadUrl;
+        });
+
+        if (receiptData['base64Data'] != null) {
+          setState(() {
+            _base64Data = receiptData['base64Data'];
+            _isLoading = false;
+          });
+          try {
+            final hasDataUri = _base64Data!.startsWith('data:');
+            LoggerService.info(
+              'ReceiptViewer: base64Length=${_base64Data!.length}, hasDataUri=$hasDataUri, isImage=${widget.receipt.isImage}, contentType=${widget.receipt.contentType}',
+            );
+          } catch (_) {}
+        } else {
+          try {
+            LoggerService.warning(
+              'ReceiptViewer: base64Data ausente; usando fallback de URL para exibição',
+            );
+          } catch (_) {}
+          setState(() {
+            _base64Data = null;
+            _isLoading = false;
+          });
+        }
+      } else {
+        try {
+          LoggerService.warning(
+            'ReceiptViewer: recibo não encontrado no Firestore (receiptData null)',
+          );
+        } catch (_) {}
+        setState(() {
+          _errorMessage = 'Dados do recibo não encontrados';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      try {
+        LoggerService.error('ReceiptViewer: erro ao carregar recibo', e);
+      } catch (_) {}
+      setState(() {
+        _errorMessage = 'Erro ao carregar recibo: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _openInNewTab() async {
+    try {
+      String? url = _downloadUrl;
+      if (url == null &&
+          _transactionId != null &&
+          widget.receipt.name.isNotEmpty) {
+        url = await StorageService.getStorageDownloadUrl(
+          transactionId: _transactionId!,
+          fileName: widget.receipt.name,
+        );
+        if (url != null) {
+          setState(() {
+            _downloadUrl = url;
+          });
+        }
+      }
+      if (url == null) return;
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } catch (e) {
+      try {
+        LoggerService.warning('Falha ao abrir em nova aba: $e');
+      } catch (_) {}
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(receipt.name),
+        title: Text(widget.receipt.name),
         actions: [
           IconButton(
-            icon: const Icon(Icons.open_in_new),
-            onPressed: () {
-              // Abrir URL em navegador externo
-              // Implementar conforme necessário
-            },
-            tooltip: 'Abrir em nova aba',
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadReceiptData,
+            tooltip: 'Recarregar',
           ),
+          if (_downloadUrl != null || _transactionId != null)
+            IconButton(
+              icon: const Icon(Icons.open_in_new),
+              onPressed: _openInNewTab,
+              tooltip: 'Abrir em nova aba',
+            ),
         ],
       ),
-      body: Center(
-        child: receipt.isImage
-            ? InteractiveViewer(
-                child: Image.network(
-                  receipt.url,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return const CircularProgressIndicator();
-                  },
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.error, size: 64, color: Colors.red),
-                        SizedBox(height: 16),
-                        Text('Erro ao carregar imagem'),
-                      ],
-                    );
-                  },
-                ),
-              )
-            : Column(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+          ? Center(
+              child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.picture_as_pdf, size: 64, color: Colors.red),
+                  const Icon(Icons.error, size: 64, color: Colors.red),
                   const SizedBox(height: 16),
                   Text(
-                    receipt.name,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                    _errorMessage!,
+                    style: const TextStyle(fontSize: 16),
+                    textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 8),
-                  Text(receipt.formattedSize),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      // Abrir PDF em navegador
-                      // Implementar conforme necessário
-                    },
-                    icon: const Icon(Icons.open_in_new),
-                    label: const Text('Abrir PDF'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadReceiptData,
+                    child: const Text('Tentar novamente'),
                   ),
                 ],
               ),
+            )
+          : Center(
+              child: widget.receipt.isImage
+                  ? InteractiveViewer(child: _buildImageFromBase64())
+                  : _buildPdfViewer(),
+            ),
+    );
+  }
+
+  Widget _buildImageFromBase64() {
+    if (_base64Data == null) {
+      return _buildImageNetworkFallback();
+    }
+
+    try {
+      final normalized = _normalizeBase64(_base64Data!);
+      LoggerService.info(
+        'ReceiptViewer: normalizedBase64Length=${normalized.length}',
+      );
+      final bytes = base64Decode(normalized);
+      return Image.memory(
+        bytes,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return const Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error, size: 64, color: Colors.red),
+              SizedBox(height: 16),
+              Text('Erro ao decodificar imagem'),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      LoggerService.error('ReceiptViewer: erro ao processar imagem', e);
+      return _buildImageNetworkFallback(
+        errorText: 'Erro ao processar imagem: $e',
+      );
+    }
+  }
+
+  Widget _buildPdfViewer() {
+    if (kIsWeb) {
+      try {
+        LoggerService.info(
+          'ReceiptViewer: web detectado, usando fallback de URL para PDF',
+        );
+      } catch (_) {}
+      return _buildPdfNetworkFallback();
+    }
+
+    if (_base64Data == null) {
+      return _buildPdfNetworkFallback();
+    }
+
+    try {
+      final normalized = _normalizeBase64(_base64Data!);
+      LoggerService.info(
+        'ReceiptViewer: normalizedPdfBase64Length=${normalized.length}',
+      );
+      final bytes = base64Decode(normalized);
+      return SfPdfViewer.memory(bytes);
+    } catch (e) {
+      LoggerService.error('ReceiptViewer: erro ao processar PDF', e);
+      return _buildPdfNetworkFallback(errorText: 'Erro ao processar PDF: $e');
+    }
+  }
+
+  Widget _buildPdfNetworkFallback({String? errorText}) {
+    if (_transactionId == null || widget.receipt.name.isEmpty) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error, size: 64, color: Colors.red),
+          const SizedBox(height: 16),
+          Text(errorText ?? 'Dados do PDF não disponíveis'),
+        ],
+      );
+    }
+
+    return FutureBuilder<String?>(
+      future: StorageService.getStorageDownloadUrl(
+        transactionId: _transactionId!,
+        fileName: widget.receipt.name,
       ),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final url = snapshot.data;
+        if (url == null) {
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error, size: 64, color: Colors.red),
+              const SizedBox(height: 16),
+              Text(errorText ?? 'Não foi possível obter URL do PDF'),
+              const SizedBox(height: 12),
+              ElevatedButton.icon(
+                onPressed: _openInNewTab,
+                icon: const Icon(Icons.open_in_new),
+                label: const Text('Abrir em nova aba'),
+              ),
+            ],
+          );
+        }
+        LoggerService.info('ReceiptViewer: usando fallback URL para PDF');
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          if (_downloadUrl == null) {
+            setState(() {
+              _downloadUrl = url;
+            });
+          }
+        });
+        return SfPdfViewer.network(url);
+      },
+    );
+  }
+
+  Widget _buildImageNetworkFallback({String? errorText}) {
+    if (_transactionId == null || widget.receipt.name.isEmpty) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error, size: 64, color: Colors.red),
+          const SizedBox(height: 16),
+          Text(errorText ?? 'Dados da imagem não disponíveis'),
+        ],
+      );
+    }
+
+    return FutureBuilder<String?>(
+      future: StorageService.getStorageDownloadUrl(
+        transactionId: _transactionId!,
+        fileName: widget.receipt.name,
+      ),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final url = snapshot.data;
+        if (url == null) {
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error, size: 64, color: Colors.red),
+              const SizedBox(height: 16),
+              Text(errorText ?? 'Não foi possível obter URL da imagem'),
+              const SizedBox(height: 12),
+              ElevatedButton.icon(
+                onPressed: _openInNewTab,
+                icon: const Icon(Icons.open_in_new),
+                label: const Text('Abrir em nova aba'),
+              ),
+            ],
+          );
+        }
+        LoggerService.info('ReceiptViewer: usando fallback URL para imagem');
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          if (_downloadUrl == null) {
+            setState(() {
+              _downloadUrl = url;
+            });
+          }
+        });
+        return Image.network(url, fit: BoxFit.contain);
+      },
     );
   }
 }

@@ -15,17 +15,15 @@ class FinancialProvider with ChangeNotifier {
   DateTime _selectedPeriodStart = DateTime.now();
   DateTime _selectedPeriodEnd = DateTime.now();
 
-  // Estado de paginação (Firestore)
   DocumentSnapshot? _lastFetchedDocument;
   bool _hasMoreTransactions = true;
 
-  // Getters
-  // Garantir ordenação por data (mais recentes primeiro) sempre que acessar
   List<Transaction> get transactions {
     final sorted = List<Transaction>.from(_transactions)
       ..sort((a, b) => b.date.compareTo(a.date));
     return List.unmodifiable(sorted);
   }
+
   FinancialSummary? get currentSummary => _currentSummary;
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -33,7 +31,6 @@ class FinancialProvider with ChangeNotifier {
   DateTime get selectedPeriodEnd => _selectedPeriodEnd;
   bool get hasMoreTransactions => _hasMoreTransactions;
 
-  // Transações filtradas por período
   List<Transaction> get filteredTransactions {
     return _transactions
         .where(
@@ -48,7 +45,6 @@ class FinancialProvider with ChangeNotifier {
         .toList();
   }
 
-  // Transações por tipo
   List<Transaction> get incomeTransactions => filteredTransactions
       .where((t) => t.type == TransactionType.income)
       .toList();
@@ -57,7 +53,6 @@ class FinancialProvider with ChangeNotifier {
       .where((t) => t.type == TransactionType.expense)
       .toList();
 
-  // Totais
   double get totalIncome => incomeTransactions.fold(
     0.0,
     (previous, transaction) => previous + transaction.amount,
@@ -76,27 +71,25 @@ class FinancialProvider with ChangeNotifier {
   }
 
   void _initializePeriod() {
-    // Usar últimos 30 dias como período padrão para refletir melhor dados recentes
     final now = DateTime.now();
     _selectedPeriodStart = now.subtract(const Duration(days: 30));
     _selectedPeriodEnd = now;
   }
 
-  // Carregar transações (prioriza Firebase se autenticado)
   Future<void> loadTransactions() async {
     _setLoading(true);
     _clearError();
 
     try {
-      // Se usuário estiver autenticado, carregar do Firebase
       if (FirestoreService.isUserAuthenticated) {
         LoggerService.debug('Usuário autenticado, carregando do Firebase...');
         await loadTransactionsFromFirestore();
         return;
       }
 
-      // Caso contrário, carregar do armazenamento local
-      LoggerService.debug('Usuário não autenticado, carregando dados locais...');
+      LoggerService.debug(
+        'Usuário não autenticado, carregando dados locais...',
+      );
       final prefs = await SharedPreferences.getInstance();
       final transactionsJson = prefs.getStringList('transactions') ?? [];
 
@@ -108,10 +101,11 @@ class FinancialProvider with ChangeNotifier {
           .map((json) => Transaction.fromMap(jsonDecode(json)))
           .toList();
 
-      // Ordenar por data (mais recente primeiro)
       _transactions.sort((a, b) => b.date.compareTo(a.date));
 
-      LoggerService.debug('${_transactions.length} transações carregadas localmente');
+      LoggerService.debug(
+        '${_transactions.length} transações carregadas localmente',
+      );
 
       _updateSummary();
     } catch (e) {
@@ -122,7 +116,6 @@ class FinancialProvider with ChangeNotifier {
     }
   }
 
-  // Salvar transações no armazenamento local
   Future<void> _saveTransactions() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -136,7 +129,6 @@ class FinancialProvider with ChangeNotifier {
     }
   }
 
-  // Adicionar transação
   Future<void> addTransaction(Transaction transaction) async {
     _setLoading(true);
     _clearError();
@@ -154,7 +146,6 @@ class FinancialProvider with ChangeNotifier {
     }
   }
 
-  // Atualizar transação
   Future<void> updateTransaction(Transaction updatedTransaction) async {
     _setLoading(true);
     _clearError();
@@ -177,7 +168,6 @@ class FinancialProvider with ChangeNotifier {
     }
   }
 
-  // Remover transação
   Future<void> removeTransaction(String transactionId) async {
     _setLoading(true);
     _clearError();
@@ -194,7 +184,6 @@ class FinancialProvider with ChangeNotifier {
     }
   }
 
-  // Definir período de análise
   void setPeriod(DateTime start, DateTime end) {
     _selectedPeriodStart = start;
     _selectedPeriodEnd = end;
@@ -202,7 +191,6 @@ class FinancialProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Definir período para o mês atual
   void setCurrentMonth() {
     final now = DateTime.now();
     setPeriod(
@@ -211,19 +199,16 @@ class FinancialProvider with ChangeNotifier {
     );
   }
 
-  // Definir período para os últimos 30 dias
   void setLast30Days() {
     final now = DateTime.now();
     setPeriod(now.subtract(const Duration(days: 30)), now);
   }
 
-  // Definir período para o ano atual
   void setCurrentYear() {
     final now = DateTime.now();
     setPeriod(DateTime(now.year, 1, 1), DateTime(now.year, 12, 31));
   }
 
-  // Atualizar resumo financeiro
   void _updateSummary() {
     LoggerService.debug(
       'Atualizando resumo com ${_transactions.length} transações',
@@ -244,7 +229,6 @@ class FinancialProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Obter transações por categoria
   Map<TransactionCategory, List<Transaction>> getTransactionsByCategory(
     TransactionType type,
   ) {
@@ -260,7 +244,6 @@ class FinancialProvider with ChangeNotifier {
     return grouped;
   }
 
-  // Limpar todos os dados
   Future<void> clearAllData() async {
     _setLoading(true);
     _clearError();
@@ -280,9 +263,6 @@ class FinancialProvider with ChangeNotifier {
     }
   }
 
-
-
-  // Carregar transações com filtros e paginação
   Future<void> loadTransactionsWithFilters({
     int page = 0,
     int pageSize = 20,
@@ -300,27 +280,22 @@ class FinancialProvider with ChangeNotifier {
     _clearError();
 
     try {
-      // Se for reset, recarregar todas as transações
       if (reset) {
         await loadTransactions();
       }
 
-      // Aplicar filtros
       List<Transaction> filteredList = List.from(_transactions);
 
-      // Filtro por tipo
       if (type != null) {
         filteredList = filteredList.where((t) => t.type == type).toList();
       }
 
-      // Filtro por categoria
       if (category != null) {
         filteredList = filteredList
             .where((t) => t.category == category)
             .toList();
       }
 
-      // Filtro por período
       if (dateRange != null) {
         filteredList = filteredList
             .where(
@@ -333,21 +308,18 @@ class FinancialProvider with ChangeNotifier {
             .toList();
       }
 
-      // Filtro por valor mínimo
       if (minAmount != null) {
         filteredList = filteredList
             .where((t) => t.amount >= minAmount)
             .toList();
       }
 
-      // Filtro por valor máximo
       if (maxAmount != null) {
         filteredList = filteredList
             .where((t) => t.amount <= maxAmount)
             .toList();
       }
 
-      // Filtro por busca textual
       if (searchQuery != null && searchQuery.isNotEmpty) {
         final query = searchQuery.toLowerCase();
         filteredList = filteredList
@@ -360,14 +332,11 @@ class FinancialProvider with ChangeNotifier {
             .toList();
       }
 
-      // Ordenar por data (mais recente primeiro)
       filteredList.sort((a, b) => b.date.compareTo(a.date));
 
-      // Se for reset, substituir a lista, senão adicionar à lista existente
       if (reset) {
         _transactions = filteredList;
       } else {
-        // Para paginação, adicionar apenas os novos itens
         final startIndex = page * pageSize;
         final endIndex = (startIndex + pageSize).clamp(0, filteredList.length);
 
@@ -387,7 +356,6 @@ class FinancialProvider with ChangeNotifier {
     }
   }
 
-  // Buscar transações por texto
   List<Transaction> searchTransactions(String query) {
     if (query.isEmpty) return _transactions;
 
@@ -404,7 +372,6 @@ class FinancialProvider with ChangeNotifier {
         .toList();
   }
 
-  // Filtrar transações por múltiplos critérios
   List<Transaction> filterTransactions({
     TransactionType? type,
     TransactionCategory? category,
@@ -445,7 +412,6 @@ class FinancialProvider with ChangeNotifier {
     return filtered;
   }
 
-  // Obter estatísticas de transações
   Map<String, dynamic> getTransactionStats() {
     return {
       'total': _transactions.length,
@@ -465,7 +431,6 @@ class FinancialProvider with ChangeNotifier {
 
   // ========== MÉTODOS DE INTEGRAÇÃO COM FIRESTORE ==========
 
-  // Carregar transações do Firestore
   Future<void> loadTransactionsFromFirestore() async {
     if (!FirestoreService.isUserAuthenticated) {
       LoggerService.debug('Usuário não autenticado, carregando dados locais');
@@ -487,11 +452,9 @@ class FinancialProvider with ChangeNotifier {
         '${_transactions.length} transações carregadas do Firestore',
       );
 
-      // Salvar localmente como backup
       await _saveTransactions();
       _updateSummary();
 
-      // Se não houver transações no Firestore, sincronizar dados locais
       if (_transactions.isEmpty) {
         await _syncLocalDataToFirestore();
       }
@@ -501,26 +464,22 @@ class FinancialProvider with ChangeNotifier {
         e,
       );
       _setError('Erro ao carregar dados online: $e');
-      await loadTransactions(); // Fallback para dados locais
+      await loadTransactions();
     } finally {
       _setLoading(false);
     }
   }
 
-  // Adicionar transação com sincronização Firestore
   Future<void> addTransactionWithSync(Transaction transaction) async {
     _setLoading(true);
     _clearError();
 
     try {
-      // Adicionar localmente primeiro
       _transactions.add(transaction);
       _transactions.sort((a, b) => b.date.compareTo(a.date));
 
-      // Salvar localmente
       await _saveTransactions();
 
-      // Sincronizar com Firestore se autenticado
       if (FirestoreService.isUserAuthenticated) {
         await FirestoreService.addTransaction(transaction);
         LoggerService.debug('Transação sincronizada com Firestore');
@@ -528,7 +487,6 @@ class FinancialProvider with ChangeNotifier {
 
       _updateSummary();
     } catch (e) {
-      // Se falhar no Firestore, manter dados locais
       LoggerService.error('Erro ao sincronizar com Firestore: $e', e);
       _setError('Transação salva localmente. Erro de sincronização: $e');
       _updateSummary();
@@ -537,7 +495,6 @@ class FinancialProvider with ChangeNotifier {
     }
   }
 
-  // Atualizar transação com sincronização Firestore
   Future<void> updateTransactionWithSync(Transaction updatedTransaction) async {
     _setLoading(true);
     _clearError();
@@ -550,10 +507,8 @@ class FinancialProvider with ChangeNotifier {
         _transactions[index] = updatedTransaction;
         _transactions.sort((a, b) => b.date.compareTo(a.date));
 
-        // Salvar localmente
         await _saveTransactions();
 
-        // Sincronizar com Firestore se autenticado
         if (FirestoreService.isUserAuthenticated) {
           await FirestoreService.updateTransaction(updatedTransaction);
           LoggerService.debug('Transação atualizada no Firestore');
@@ -570,7 +525,6 @@ class FinancialProvider with ChangeNotifier {
     }
   }
 
-  // Remover transação com sincronização Firestore
   Future<void> removeTransactionWithSync(String transactionId) async {
     _setLoading(true);
     _clearError();
@@ -578,10 +532,8 @@ class FinancialProvider with ChangeNotifier {
     try {
       _transactions.removeWhere((t) => t.id == transactionId);
 
-      // Salvar localmente
       await _saveTransactions();
 
-      // Sincronizar com Firestore se autenticado
       if (FirestoreService.isUserAuthenticated) {
         await FirestoreService.deleteTransaction(transactionId);
         LoggerService.debug('Transação removida do Firestore');
@@ -597,12 +549,10 @@ class FinancialProvider with ChangeNotifier {
     }
   }
 
-  // Sincronizar dados locais com Firestore
   Future<void> _syncLocalDataToFirestore() async {
     if (!FirestoreService.isUserAuthenticated) return;
 
     try {
-      // Carregar dados locais
       final prefs = await SharedPreferences.getInstance();
       final transactionsJson = prefs.getStringList('transactions') ?? [];
 
@@ -616,7 +566,6 @@ class FinancialProvider with ChangeNotifier {
         );
         await FirestoreService.syncLocalDataToFirestore(localTransactions);
 
-        // Recarregar do Firestore para garantir consistência
         await loadTransactionsFromFirestore();
       }
     } catch (e) {
@@ -624,7 +573,6 @@ class FinancialProvider with ChangeNotifier {
     }
   }
 
-  // Carregar transações com filtros do Firestore
   Future<void> loadTransactionsWithFiltersFromFirestore({
     int page = 0,
     int pageSize = 20,
@@ -637,7 +585,6 @@ class FinancialProvider with ChangeNotifier {
     bool reset = false,
   }) async {
     if (!FirestoreService.isUserAuthenticated) {
-      // Fallback para método local
       await loadTransactionsWithFilters(
         page: page,
         pageSize: pageSize,
@@ -654,7 +601,6 @@ class FinancialProvider with ChangeNotifier {
 
     if (reset) {
       _setLoading(true);
-      // Resetar estado de paginação
       _lastFetchedDocument = null;
       _hasMoreTransactions = true;
     }
@@ -684,10 +630,12 @@ class FinancialProvider with ChangeNotifier {
 
       _updateSummary();
     } catch (e) {
-       LoggerService.error('Erro ao carregar transações filtradas do Firestore: $e', e);
-       _setError('Erro ao carregar transações: $e');
+      LoggerService.error(
+        'Erro ao carregar transações filtradas do Firestore: $e',
+        e,
+      );
+      _setError('Erro ao carregar transações: $e');
 
-      // Fallback para método local
       await loadTransactionsWithFilters(
         page: page,
         pageSize: pageSize,
@@ -706,10 +654,8 @@ class FinancialProvider with ChangeNotifier {
     }
   }
 
-  // Verificar status de sincronização
   bool get isOnlineMode => FirestoreService.isUserAuthenticated;
 
-  // Forçar sincronização completa
   Future<void> forceSyncWithFirestore() async {
     if (!FirestoreService.isUserAuthenticated) {
       _setError('Usuário não autenticado para sincronização');
@@ -721,17 +667,16 @@ class FinancialProvider with ChangeNotifier {
 
     try {
       await _syncLocalDataToFirestore();
-       await loadTransactionsFromFirestore();
-       LoggerService.debug('Sincronização completa realizada com sucesso');
-     } catch (e) {
-       LoggerService.error('Erro na sincronização completa: $e', e);
+      await loadTransactionsFromFirestore();
+      LoggerService.debug('Sincronização completa realizada com sucesso');
+    } catch (e) {
+      LoggerService.error('Erro na sincronização completa: $e', e);
       _setError('Erro na sincronização: $e');
     } finally {
       _setLoading(false);
     }
   }
 
-  // Métodos auxiliares
   void _setLoading(bool loading) {
     _isLoading = loading;
     notifyListeners();

@@ -249,7 +249,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               keyboardType: TextInputType.phone,
               validator: (value) {
                 if (value != null && value.isNotEmpty) {
-                  // Remove caracteres não numéricos para validação
                   final numbersOnly = value.replaceAll(RegExp(r'[^\d]'), '');
                   if (numbersOnly.length < 10 || numbersOnly.length > 11) {
                     return 'Telefone deve ter 10 ou 11 dígitos';

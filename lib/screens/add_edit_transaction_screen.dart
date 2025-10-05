@@ -10,15 +10,13 @@ import '../widgets/receipt_upload_widget.dart';
 import '../widgets/radio_group.dart';
 
 class AddEditTransactionScreen extends StatefulWidget {
-  final app_models.Transaction? transaction; // null para adicionar, preenchido para editar
+  final app_models.Transaction? transaction;
 
-  const AddEditTransactionScreen({
-    super.key,
-    this.transaction,
-  });
+  const AddEditTransactionScreen({super.key, this.transaction});
 
   @override
-  State<AddEditTransactionScreen> createState() => _AddEditTransactionScreenState();
+  State<AddEditTransactionScreen> createState() =>
+      _AddEditTransactionScreenState();
 }
 
 class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
@@ -26,11 +24,12 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _amountController = TextEditingController();
-  
+
   app_models.TransactionType _selectedType = app_models.TransactionType.expense;
-  app_models.TransactionCategory _selectedCategory = app_models.TransactionCategory.otherExpense;
+  app_models.TransactionCategory _selectedCategory =
+      app_models.TransactionCategory.otherExpense;
   DateTime _selectedDate = DateTime.now();
-  
+
   bool _isLoading = false;
   bool get _isEditing => widget.transaction != null;
   String? _transactionId;
@@ -81,10 +80,9 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
     if (type != null) {
       setState(() {
         _selectedType = type;
-        // Atualizar categoria padrão baseada no tipo
         _selectedCategory = type == app_models.TransactionType.income
-          ? app_models.TransactionCategory.salary
-          : app_models.TransactionCategory.otherExpense;
+            ? app_models.TransactionCategory.salary
+            : app_models.TransactionCategory.otherExpense;
       });
     }
   }
@@ -122,11 +120,13 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
       _isLoading = true;
     });
 
-  try {
+    try {
       final amount = Formatters.parseDouble(_amountController.text) ?? 0.0;
-      
+
       final transaction = app_models.Transaction(
-        id: _isEditing ? widget.transaction!.id : DateTime.now().millisecondsSinceEpoch.toString(),
+        id: _isEditing
+            ? widget.transaction!.id
+            : DateTime.now().millisecondsSinceEpoch.toString(),
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
         amount: amount,
@@ -137,12 +137,11 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
       );
 
       final provider = context.read<FinancialProvider>();
-      
+
       if (_isEditing) {
         await provider.updateTransactionWithSync(transaction);
       } else {
         await provider.addTransactionWithSync(transaction);
-        // Definir o ID da transação para permitir upload de recibos
         setState(() {
           _transactionId = transaction.id;
         });
@@ -151,13 +150,15 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_isEditing ? 'Transação atualizada com sucesso!' : 'Transação adicionada com sucesso!'),
+            content: Text(
+              _isEditing
+                  ? 'Transação atualizada com sucesso!'
+                  : 'Transação adicionada com sucesso!',
+            ),
             backgroundColor: Colors.green,
           ),
         );
-        
-        // Se for edição, voltar para a tela anterior
-        // Se for nova transação, manter na tela para permitir upload de recibos
+
         if (_isEditing) {
           Navigator.of(context).pop(true);
         }
@@ -219,7 +220,6 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Tipo de Transação
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -242,21 +242,27 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
                             Expanded(
                               child: ListTile(
                                 title: const Text('Receita'),
-                                leading: RadioButton<app_models.TransactionType>(
-                                  value: app_models.TransactionType.income,
-                                ),
+                                leading:
+                                    RadioButton<app_models.TransactionType>(
+                                      value: app_models.TransactionType.income,
+                                    ),
                                 contentPadding: EdgeInsets.zero,
-                                onTap: () => _onTypeChanged(app_models.TransactionType.income),
+                                onTap: () => _onTypeChanged(
+                                  app_models.TransactionType.income,
+                                ),
                               ),
                             ),
                             Expanded(
                               child: ListTile(
                                 title: const Text('Despesa'),
-                                leading: RadioButton<app_models.TransactionType>(
-                                  value: app_models.TransactionType.expense,
-                                ),
+                                leading:
+                                    RadioButton<app_models.TransactionType>(
+                                      value: app_models.TransactionType.expense,
+                                    ),
                                 contentPadding: EdgeInsets.zero,
-                                onTap: () => _onTypeChanged(app_models.TransactionType.expense),
+                                onTap: () => _onTypeChanged(
+                                  app_models.TransactionType.expense,
+                                ),
                               ),
                             ),
                           ],
@@ -266,10 +272,9 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 16),
-              
-              // Título
+
               TextFormField(
                 controller: _titleController,
                 decoration: const InputDecoration(
@@ -281,10 +286,9 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
                 validator: Validators.validateTitle,
                 textCapitalization: TextCapitalization.words,
               ),
-              
+
               const SizedBox(height: 16),
-              
-              // Valor
+
               TextFormField(
                 controller: _amountController,
                 decoration: const InputDecoration(
@@ -294,16 +298,15 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
                   prefixIcon: Icon(Icons.attach_money),
                   prefixText: 'R\$ ',
                 ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [
-                  PtBrCurrencyInputFormatter(),
-                ],
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                inputFormatters: [PtBrCurrencyInputFormatter()],
                 validator: Validators.validateAmount,
               ),
-              
+
               const SizedBox(height: 16),
-              
-              // Categoria
+
               DropdownButtonFormField<app_models.TransactionCategory>(
                 initialValue: _selectedCategory,
                 decoration: const InputDecoration(
@@ -331,10 +334,9 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
                   return null;
                 },
               ),
-              
+
               const SizedBox(height: 16),
-              
-              // Data
+
               InkWell(
                 onTap: _selectDate,
                 child: InputDecorator(
@@ -349,10 +351,9 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 16),
-              
-              // Descrição
+
               TextFormField(
                 controller: _descriptionController,
                 decoration: const InputDecoration(
@@ -365,24 +366,23 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
                 textCapitalization: TextCapitalization.sentences,
                 validator: Validators.validateDescription,
               ),
-              
+
               const SizedBox(height: 24),
-              
-              // Widget de Upload de Recibos
+
               ReceiptUploadWidget(
                 transactionId: _transactionId,
                 readOnly: false,
               ),
-              
+
               const SizedBox(height: 24),
-              
-              // Botões de ação (versão mobile)
+
               if (MediaQuery.of(context).size.width < 600)
                 Column(
                   children: [
-                    // Botão principal (Salvar ou Concluir)
                     ElevatedButton(
-                      onPressed: _isLoading ? null : (_transactionId != null && !_isEditing) 
+                      onPressed: _isLoading
+                          ? null
+                          : (_transactionId != null && !_isEditing)
                           ? () => Navigator.of(context).pop(true)
                           : _saveTransaction,
                       style: ElevatedButton.styleFrom(
@@ -398,17 +398,18 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : Text(
-                              _transactionId != null && !_isEditing 
-                                  ? 'CONCLUIR' 
-                                  : (_isEditing ? 'SALVAR ALTERAÇÕES' : 'ADICIONAR TRANSAÇÃO'),
+                              _transactionId != null && !_isEditing
+                                  ? 'CONCLUIR'
+                                  : (_isEditing
+                                        ? 'SALVAR ALTERAÇÕES'
+                                        : 'ADICIONAR TRANSAÇÃO'),
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                     ),
-                    
-                    // Botão secundário para nova transação já salva
+
                     if (_transactionId != null && !_isEditing) ...[
                       const SizedBox(height: 12),
                       OutlinedButton(

@@ -33,7 +33,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   int _selectedTabIndex = 0;
   final PageController _pageController = PageController();
 
-  // Controle de tipo de gráfico (despesas/receitas)
   bool _showOverviewExpenses = true;
   bool _showCategoryExpenses = true;
 
@@ -41,7 +40,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   void initState() {
     super.initState();
 
-    // Inicializar controladores de animação
     _headerAnimationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -58,7 +56,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       value: 0.0,
     );
 
-    // Configurar animações
     _headerAnimation = CurvedAnimation(
       parent: _headerAnimationController,
       curve: Curves.easeOutQuart,
@@ -72,7 +69,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       curve: Curves.easeOutQuint,
     );
 
-    // Carregar dados e iniciar animações
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<FinancialProvider>().loadTransactionsFromFirestore();
       _startAnimations();
@@ -716,7 +712,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       MaterialPageRoute(builder: (context) => const AddEditTransactionScreen()),
     );
 
-    // Se uma transação foi adicionada, recarregar os dados
     if (result == true && mounted) {
       context.read<FinancialProvider>().loadTransactionsFromFirestore();
     }

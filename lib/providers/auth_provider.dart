@@ -9,18 +9,10 @@ class User {
   final String email;
   final String? name;
 
-  User({
-    required this.id,
-    required this.email,
-    this.name,
-  });
+  User({required this.id, required this.email, this.name});
 
   Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'email': email,
-      'name': name,
-    };
+    return {'id': id, 'email': email, 'name': name};
   }
 
   factory User.fromMap(Map<String, dynamic> map) {
@@ -49,7 +41,6 @@ class AuthProvider extends ChangeNotifier {
   }
 
   void _initializeAuth() {
-    // Escutar mudanças no estado de autenticação do Firebase
     _authService.authStateChanges.listen((firebase_auth.User? firebaseUser) {
       if (firebaseUser != null) {
         _user = User(
@@ -86,10 +77,12 @@ class AuthProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      final userCredential = await _authService.signInWithEmailAndPassword(email, password);
-      
+      final userCredential = await _authService.signInWithEmailAndPassword(
+        email,
+        password,
+      );
+
       if (userCredential != null && userCredential.user != null) {
-        // O usuário será automaticamente definido pelo listener authStateChanges
         return true;
       } else {
         _setError('Falha no login');
@@ -128,14 +121,15 @@ class AuthProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      final userCredential = await _authService.createUserWithEmailAndPassword(email, password);
-      
+      final userCredential = await _authService.createUserWithEmailAndPassword(
+        email,
+        password,
+      );
+
       if (userCredential != null && userCredential.user != null) {
-        // Atualizar o nome do usuário no Firebase
         await userCredential.user!.updateDisplayName(name);
         await userCredential.user!.reload();
-        
-        // Criar usuário no UserProvider
+
         if (_userProvider != null) {
           await _userProvider!.createUser(
             id: userCredential.user!.uid,
@@ -143,7 +137,7 @@ class AuthProvider extends ChangeNotifier {
             name: name,
           );
         }
-        
+
         return true;
       } else {
         _setError('Falha no registro');
@@ -181,16 +175,12 @@ class AuthProvider extends ChangeNotifier {
     _setLoading(true);
     try {
       await _authService.signOut();
-      
-      // Limpar dados locais
+
       await _clearUser();
-      
-      // Limpar dados do UserProvider
+
       if (_userProvider != null) {
         await _userProvider!.clearUser();
       }
-      
-      // O usuário será automaticamente definido como null pelo listener authStateChanges
     } catch (e) {
       _setError('Erro ao fazer logout: $e');
     } finally {

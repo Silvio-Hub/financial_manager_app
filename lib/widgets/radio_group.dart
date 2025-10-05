@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Widget personalizado para agrupar Radio buttons e evitar warnings de deprecação
 class CustomRadioGroup<T> extends StatelessWidget {
   final T? groupValue;
   final ValueChanged<T?>? onChanged;
@@ -22,14 +21,13 @@ class CustomRadioGroup<T> extends StatelessWidget {
     );
   }
 
-  /// Método estático para obter os valores do CustomRadioGroup mais próximo na árvore de widgets
   static (T?, ValueChanged<T?>?) of<T>(BuildContext context) {
-    final scope = context.dependOnInheritedWidgetOfExactType<_RadioGroupScope<T>>();
+    final scope = context
+        .dependOnInheritedWidgetOfExactType<_RadioGroupScope<T>>();
     return (scope?.groupValue, scope?.onChanged);
   }
 }
 
-/// InheritedWidget para propagar os valores do CustomRadioGroup
 class _RadioGroupScope<T> extends InheritedWidget {
   final T? groupValue;
   final ValueChanged<T?>? onChanged;
@@ -43,11 +41,10 @@ class _RadioGroupScope<T> extends InheritedWidget {
   @override
   bool updateShouldNotify(_RadioGroupScope<T> oldWidget) {
     return groupValue != oldWidget.groupValue ||
-           onChanged != oldWidget.onChanged;
+        onChanged != oldWidget.onChanged;
   }
 }
 
-/// Radio button personalizado que funciona com CustomRadioGroup
 class RadioButton<T> extends StatelessWidget {
   final T value;
   final T? groupValue;

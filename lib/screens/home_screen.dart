@@ -45,7 +45,8 @@ class HomeScreen extends StatelessWidget {
                             color: themeProvider.themeMode == ThemeMode.light
                                 ? Theme.of(context).primaryColor
                                 : null,
-                            fontWeight: themeProvider.themeMode == ThemeMode.light
+                            fontWeight:
+                                themeProvider.themeMode == ThemeMode.light
                                 ? FontWeight.bold
                                 : null,
                           ),
@@ -70,7 +71,8 @@ class HomeScreen extends StatelessWidget {
                             color: themeProvider.themeMode == ThemeMode.dark
                                 ? Theme.of(context).primaryColor
                                 : null,
-                            fontWeight: themeProvider.themeMode == ThemeMode.dark
+                            fontWeight:
+                                themeProvider.themeMode == ThemeMode.dark
                                 ? FontWeight.bold
                                 : null,
                           ),
@@ -95,7 +97,8 @@ class HomeScreen extends StatelessWidget {
                             color: themeProvider.themeMode == ThemeMode.system
                                 ? Theme.of(context).primaryColor
                                 : null,
-                            fontWeight: themeProvider.themeMode == ThemeMode.system
+                            fontWeight:
+                                themeProvider.themeMode == ThemeMode.system
                                 ? FontWeight.bold
                                 : null,
                           ),
@@ -115,7 +118,9 @@ class HomeScreen extends StatelessWidget {
                 if (context.mounted) {
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                    MaterialPageRoute(
+                      builder: (context) => const LoginScreen(),
+                    ),
                   );
                 }
               } catch (e) {
@@ -137,7 +142,6 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Boas-vindas
             Card(
               elevation: 2,
               child: Padding(
@@ -159,16 +163,14 @@ class HomeScreen extends StatelessWidget {
                             children: [
                               Text(
                                 'Bem-vindo!',
-                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                style: Theme.of(context).textTheme.headlineSmall
+                                    ?.copyWith(fontWeight: FontWeight.bold),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 user?.displayName ?? user?.email ?? 'Usuário',
-                                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                  color: Colors.grey[600],
-                                ),
+                                style: Theme.of(context).textTheme.bodyLarge
+                                    ?.copyWith(color: Colors.grey[600]),
                               ),
                             ],
                           ),
@@ -180,16 +182,15 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            
-            // Resumo financeiro (placeholder)
+
             Text(
               'Resumo Financeiro',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            
+
             Row(
               children: [
                 Expanded(
@@ -214,10 +215,11 @@ class HomeScreen extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             'R\$ 0,00',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: AppColors.income,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(
+                                  color: AppColors.income,
+                                  fontWeight: FontWeight.bold,
+                                ),
                           ),
                         ],
                       ),
@@ -247,10 +249,11 @@ class HomeScreen extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             'R\$ 0,00',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: AppColors.expense,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(
+                                  color: AppColors.expense,
+                                  fontWeight: FontWeight.bold,
+                                ),
                           ),
                         ],
                       ),
@@ -259,18 +262,17 @@ class HomeScreen extends StatelessWidget {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 24),
-            
-            // Ações rápidas
+
             Text(
               'Ações Rápidas',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            
+
             Row(
               children: [
                 Expanded(

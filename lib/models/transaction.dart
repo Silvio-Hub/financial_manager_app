@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum TransactionType {
-  income,
-  expense,
-}
+enum TransactionType { income, expense }
 
 enum TransactionCategory {
   // Receitas
@@ -13,7 +10,7 @@ enum TransactionCategory {
   investment,
   gift,
   otherIncome,
-  
+
   // Despesas
   food,
   transport,
@@ -49,7 +46,6 @@ class Transaction {
     this.receiptUrls = const [],
   });
 
-  // Converter para Map (para armazenamento)
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -58,30 +54,29 @@ class Transaction {
       'amount': amount,
       'type': type.name,
       'category': category.name,
-      // Persistir como Timestamp para consultas de intervalo no Firestore
       'date': Timestamp.fromDate(date),
       'userId': userId,
       'receiptUrls': receiptUrls,
     };
   }
 
-  // Criar a partir de Map
   factory Transaction.fromMap(Map<String, dynamic> map) {
     return Transaction(
       id: map['id'] ?? '',
       title: map['title'] ?? '',
       description: map['description'] ?? '',
       amount: (map['amount'] ?? 0.0).toDouble(),
-      // Tornar o parsing do tipo robusto para valores localizados (pt-BR)
       type: (() {
         final raw = (map['type'] ?? '').toString().toLowerCase().trim();
         if (raw == 'income' || raw == 'receita' || raw == 'entrada') {
           return TransactionType.income;
         }
-        if (raw == 'expense' || raw == 'despesa' || raw == 'saida' || raw == 'saída') {
+        if (raw == 'expense' ||
+            raw == 'despesa' ||
+            raw == 'saida' ||
+            raw == 'saída') {
           return TransactionType.expense;
         }
-        // Caso não reconheça, manter como despesa para evitar falso positivo
         return TransactionType.expense;
       })(),
       category: TransactionCategory.values.firstWhere(
@@ -101,7 +96,6 @@ class Transaction {
     );
   }
 
-  // Copiar com modificações
   Transaction copyWith({
     String? id,
     String? title,
@@ -141,7 +135,6 @@ class Transaction {
   int get hashCode => id.hashCode;
 }
 
-// Extensões para facilitar o uso
 extension TransactionTypeExtension on TransactionType {
   String get displayName {
     switch (this) {
@@ -185,7 +178,7 @@ extension TransactionCategoryExtension on TransactionCategory {
         return 'Presente';
       case TransactionCategory.otherIncome:
         return 'Outras Receitas';
-      
+
       // Despesas
       case TransactionCategory.food:
         return 'Alimentação';
@@ -221,7 +214,7 @@ extension TransactionCategoryExtension on TransactionCategory {
         return Icons.card_giftcard;
       case TransactionCategory.otherIncome:
         return Icons.attach_money;
-      
+
       // Despesas
       case TransactionCategory.food:
         return Icons.restaurant;
@@ -257,7 +250,7 @@ extension TransactionCategoryExtension on TransactionCategory {
         return Colors.pink;
       case TransactionCategory.otherIncome:
         return Colors.teal;
-      
+
       // Despesas
       case TransactionCategory.food:
         return Colors.orange;

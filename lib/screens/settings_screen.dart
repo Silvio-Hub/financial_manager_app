@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../services/auth_service.dart';
+import '../providers/auth_provider.dart' as app_auth;
 import 'package:provider/provider.dart';
 import '../providers/settings_provider.dart';
-import '../providers/auth_provider.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/loading_widget.dart';
 import '../widgets/radio_group.dart';
@@ -344,18 +346,180 @@ class SettingsScreen extends StatelessWidget {
   }
 
   void _showChangePasswordDialog(BuildContext context) {
+    final currentController = TextEditingController();
+    final newController = TextEditingController();
+    final confirmController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    String mapError(FirebaseAuthException e) {
+      switch (e.code) {
+        case 'weak-password':
+          return 'A nova senha é muito fraca.';
+        case 'wrong-password':
+          return 'Senha atual incorreta.';
+        case 'requires-recent-login':
+          return 'Faça login novamente para alterar a senha.';
+        case 'too-many-requests':
+          return 'Muitas tentativas. Tente novamente mais tarde.';
+        case 'email-not-found':
+          return 'E-mail não disponível para reautenticação.';
+        case 'user-not-signed-in':
+          return 'Nenhum usuário autenticado.';
+        default:
+          return 'Erro ao alterar a senha (${e.code}).';
+      }
+    }
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Alterar Senha'),
-        content: const Text('Esta funcionalidade será implementada em breve.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
+      builder: (dialogContext) {
+        final authService = AuthService();
+        bool isLoading = false;
+        bool showCurrent = false;
+        bool showNew = false;
+        bool showConfirm = false;
+        return StatefulBuilder(
+          builder: (ctx, setState) {
+            return AlertDialog(
+              title: const Text('Alterar Senha'),
+              content: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: currentController,
+                        obscureText: !showCurrent,
+                        decoration: InputDecoration(
+                          labelText: 'Senha atual',
+                          suffixIcon: IconButton(
+                            icon: Icon(showCurrent
+                                ? Icons.visibility_off
+                                : Icons.visibility),
+                            onPressed: () => setState(() {
+                              showCurrent = !showCurrent;
+                            }),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Informe sua senha atual';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: newController,
+                        obscureText: !showNew,
+                        decoration: InputDecoration(
+                          labelText: 'Nova senha',
+                          suffixIcon: IconButton(
+                            icon: Icon(showNew
+                                ? Icons.visibility_off
+                                : Icons.visibility),
+                            onPressed: () => setState(() {
+                              showNew = !showNew;
+                            }),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Informe a nova senha';
+                          }
+                          if (value.length < 6) {
+                            return 'A senha deve ter ao menos 6 caracteres';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: confirmController,
+                        obscureText: !showConfirm,
+                        decoration: InputDecoration(
+                          labelText: 'Confirmar nova senha',
+                          suffixIcon: IconButton(
+                            icon: Icon(showConfirm
+                                ? Icons.visibility_off
+                                : Icons.visibility),
+                            onPressed: () => setState(() {
+                              showConfirm = !showConfirm;
+                            }),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Confirme a nova senha';
+                          }
+                          if (value != newController.text) {
+                            return 'As senhas não coincidem';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isLoading ? null : () => Navigator.pop(context),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: isLoading
+                      ? null
+                      : () async {
+                          if (!formKey.currentState!.validate()) return;
+                          setState(() => isLoading = true);
+                          try {
+                            await authService.updatePassword(
+                              currentController.text.trim(),
+                              newController.text.trim(),
+                            );
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content:
+                                      Text('Senha alterada com sucesso'),
+                                ),
+                              );
+                            }
+                          } on FirebaseAuthException catch (e) {
+                            setState(() => isLoading = false);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(mapError(e))),
+                              );
+                            }
+                          } catch (_) {
+                            setState(() => isLoading = false);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content:
+                                      Text('Erro inesperado ao alterar senha'),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  child: isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Salvar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -467,7 +631,7 @@ class SettingsScreen extends StatelessWidget {
             ),
             onPressed: () async {
               Navigator.pop(context);
-              await context.read<AuthProvider>().logout();
+              await context.read<app_auth.AuthProvider>().logout();
               if (context.mounted) {
                 Navigator.of(context).pushNamedAndRemoveUntil(
                   '/',

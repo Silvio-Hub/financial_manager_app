@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:animations/animations.dart';
 import '../providers/auth_provider.dart';
+import '../constants/app_strings.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,45 +16,45 @@ class _LoginScreenState extends State<LoginScreen>
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  
+
   late AnimationController _fadeAnimationController;
   late AnimationController _slideAnimationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
-  
+
   bool _isPasswordVisible = false;
   bool _isLoginMode = true;
+  bool _acceptTerms = false;
 
   @override
   void initState() {
     super.initState();
-    
+
     _fadeAnimationController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
-    
+
     _slideAnimationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fadeAnimationController,
-      curve: Curves.easeInOut,
-    ));
-    
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideAnimationController,
-      curve: Curves.easeOutCubic,
-    ));
-    
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _fadeAnimationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _slideAnimationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
+
     _fadeAnimationController.forward();
     _slideAnimationController.forward();
   }
@@ -72,19 +73,23 @@ class _LoginScreenState extends State<LoginScreen>
 
     final authProvider = context.read<AuthProvider>();
     bool success;
-    
+
     if (_isLoginMode) {
-      // Modo login
       success = await authProvider.login(
         _emailController.text.trim(),
         _passwordController.text,
       );
     } else {
-      // Modo registro
+      if (!_acceptTerms) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(AppStrings.mustAcceptTerms)),
+        );
+        return;
+      }
       success = await authProvider.register(
         _emailController.text.trim(),
         _passwordController.text,
-        'Usuário', // Nome padrão, pode ser melhorado com um campo adicional
+        'Usuário',
       );
     }
 
@@ -97,7 +102,6 @@ class _LoginScreenState extends State<LoginScreen>
         ),
       );
     } else if (mounted && success && !_isLoginMode) {
-      // Mostrar mensagem de sucesso para registro
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Conta criada com sucesso!'),
@@ -214,6 +218,27 @@ class _LoginScreenState extends State<LoginScreen>
           _buildEmailField(),
           const SizedBox(height: 16),
           _buildPasswordField(),
+          if (!_isLoginMode) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Checkbox(
+                  value: _acceptTerms,
+                  onChanged: (value) {
+                    setState(() {
+                      _acceptTerms = value ?? false;
+                    });
+                  },
+                ),
+                const Expanded(
+                  child: Text(
+                    'Aceito os termos e condições',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -226,11 +251,11 @@ class _LoginScreenState extends State<LoginScreen>
       decoration: InputDecoration(
         labelText: 'Email',
         prefixIcon: const Icon(Icons.email_outlined),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
-        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        fillColor: Theme.of(
+          context,
+        ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
       ),
       validator: (value) {
         if (value == null || value.isEmpty) {
@@ -261,11 +286,11 @@ class _LoginScreenState extends State<LoginScreen>
             });
           },
         ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
-        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        fillColor: Theme.of(
+          context,
+        ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
       ),
       validator: (value) {
         if (value == null || value.isEmpty) {

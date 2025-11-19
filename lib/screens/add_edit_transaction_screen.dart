@@ -24,6 +24,7 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _amountController = TextEditingController();
+  final _installmentsController = TextEditingController(text: '2');
 
   app_models.TransactionType _selectedType = app_models.TransactionType.expense;
   app_models.TransactionCategory _selectedCategory =
@@ -33,6 +34,8 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
   bool _isLoading = false;
   bool get _isEditing => widget.transaction != null;
   String? _transactionId;
+
+  bool _isInstallment = false;
 
   @override
   void initState() {
@@ -51,6 +54,11 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
     _selectedType = transaction.type;
     _selectedCategory = transaction.category;
     _selectedDate = transaction.date;
+    if (transaction.installmentCount != null &&
+        transaction.installmentIndex != null) {
+      _isInstallment = true;
+      _installmentsController.text = transaction.installmentCount!.toString();
+    }
   }
 
   @override
@@ -58,6 +66,7 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
     _titleController.dispose();
     _descriptionController.dispose();
     _amountController.dispose();
+    _installmentsController.dispose();
     super.dispose();
   }
 
@@ -111,6 +120,16 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
     }
   }
 
+  DateTime _addMonths(DateTime date, int monthsToAdd) {
+    final int newYear = date.year + ((date.month - 1 + monthsToAdd) ~/ 12);
+    final int newMonth = ((date.month - 1 + monthsToAdd) % 12) + 1;
+    final int day = date.day;
+    // Ajusta para o último dia do mês se necessário
+    final int lastDayOfMonth = DateTime(newYear, newMonth + 1, 0).day;
+    final int finalDay = day > lastDayOfMonth ? lastDayOfMonth : day;
+    return DateTime(newYear, newMonth, finalDay);
+  }
+
   Future<void> _saveTransaction() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -122,7 +141,59 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
 
     try {
       final amount = Formatters.parseDouble(_amountController.text) ?? 0.0;
+      final provider = context.read<FinancialProvider>();
 
+      if (!_isEditing && _isInstallment) {
+        // Compra parcelada: gera N transações
+        final int count = int.tryParse(_installmentsController.text.trim()) ?? 0;
+        if (count < 2) {
+          throw Exception('Número de parcelas inválido. Use 2 ou mais.');
+        }
+
+        final String parentId = DateTime.now().millisecondsSinceEpoch.toString();
+
+        // Cálculo de parcelas com arredondamento controlado
+        final double perBase = ((amount / count) * 100).floor() / 100.0;
+        final double lastAmount = double.parse(
+          (amount - perBase * (count - 1)).toStringAsFixed(2),
+        );
+
+        for (int i = 1; i <= count; i++) {
+          final double parcelAmount = i == count ? lastAmount : perBase;
+          final DateTime parcelDate = _addMonths(_selectedDate, i - 1);
+          final String id = '${parentId}_$i';
+
+          final tx = app_models.Transaction(
+            id: id,
+            title: _titleController.text.trim(),
+            description:
+                '${_descriptionController.text.trim().isEmpty ? _titleController.text.trim() : _descriptionController.text.trim()} - Parcela $i/$count',
+            amount: parcelAmount,
+            type: _selectedType,
+            category: _selectedCategory,
+            date: parcelDate,
+            userId: FirebaseAuth.instance.currentUser?.uid,
+            parentTransactionId: parentId,
+            installmentIndex: i,
+            installmentCount: count,
+          );
+
+          await provider.addTransactionWithSync(tx);
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Compra parcelada adicionada: $count parcelas.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.of(context).pop(true);
+        }
+        return;
+      }
+
+      // Lançamento único ou edição existente
       final transaction = app_models.Transaction(
         id: _isEditing
             ? widget.transaction!.id
@@ -135,8 +206,6 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
         date: _selectedDate,
         userId: FirebaseAuth.instance.currentUser?.uid,
       );
-
-      final provider = context.read<FinancialProvider>();
 
       if (_isEditing) {
         await provider.updateTransactionWithSync(transaction);
@@ -268,6 +337,63 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
                           ],
                         ),
                       ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Seção de parcelamento
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Forma de Lançamento',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SwitchListTile(
+                        value: _isInstallment,
+                        title: const Text('Compra parcelada'),
+                        subtitle: const Text('Gerar parcelas mensais automaticamente'),
+                        onChanged: (val) {
+                          setState(() {
+                            _isInstallment = val;
+                          });
+                        },
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      if (_isInstallment) ...[
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _installmentsController,
+                          decoration: const InputDecoration(
+                            labelText: 'Número de parcelas *',
+                            hintText: 'Ex: 12',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.format_list_numbered),
+                          ),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: false),
+                          validator: (value) {
+                            if (!_isInstallment) return null;
+                            final v = int.tryParse((value ?? '').trim());
+                            if (v == null || v < 2) {
+                              return 'Informe 2 ou mais parcelas';
+                            }
+                            if (v > 60) {
+                              return 'Limite máximo: 60 parcelas';
+                            }
+                            return null;
+                          },
+                        ),
+                      ],
                     ],
                   ),
                 ),

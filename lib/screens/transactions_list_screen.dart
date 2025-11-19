@@ -446,14 +446,29 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
     );
   }
 
+  // Helper to filter installments to current month only
+  bool _isSameMonth(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month;
+  }
+  
+  List<app_models.Transaction> _visibleTransactions(
+      List<app_models.Transaction> items) {
+    final DateTime now = DateTime.now();
+    return items.where((t) {
+      final bool isInstallment = t.parentTransactionId != null;
+      if (!isInstallment) return true;
+      return _isSameMonth(t.date, now);
+    }).toList();
+  }
   Widget _buildTransactionsList() {
     return Consumer<FinancialProvider>(
       builder: (context, provider, child) {
-        if (provider.isLoading && provider.transactions.isEmpty) {
+        final visible = _visibleTransactions(provider.transactions);
+        if (provider.isLoading && visible.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (provider.transactions.isEmpty) {
+        if (visible.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -489,10 +504,10 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
             controller: _scrollController,
             padding: const EdgeInsets.all(16),
             itemCount:
-                provider.transactions.length +
+                visible.length +
                 ((_isLoadingMore && _hasMoreData) ? 1 : 0),
             itemBuilder: (context, index) {
-              if (index == provider.transactions.length && _hasMoreData) {
+              if (index == visible.length && _hasMoreData) {
                 return const Center(
                   child: Padding(
                     padding: EdgeInsets.all(16),
@@ -501,7 +516,7 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
                 );
               }
 
-              final transaction = provider.transactions[index];
+              final transaction = visible[index];
               return _buildTransactionCard(transaction);
             },
           ),

@@ -34,6 +34,11 @@ class Transaction {
   final String? userId;
   final List<String> receiptUrls;
 
+  // Parcelas (opcional)
+  final String? parentTransactionId; // id da compra principal
+  final int? installmentIndex; // número da parcela (1..N)
+  final int? installmentCount; // total de parcelas (N)
+
   Transaction({
     required this.id,
     required this.title,
@@ -44,6 +49,9 @@ class Transaction {
     required this.date,
     this.userId,
     this.receiptUrls = const [],
+    this.parentTransactionId,
+    this.installmentIndex,
+    this.installmentCount,
   });
 
   Map<String, dynamic> toMap() {
@@ -57,6 +65,10 @@ class Transaction {
       'date': Timestamp.fromDate(date),
       'userId': userId,
       'receiptUrls': receiptUrls,
+      // Campos de parcela
+      'parentTransactionId': parentTransactionId,
+      'installmentIndex': installmentIndex,
+      'installmentCount': installmentCount,
     };
   }
 
@@ -93,6 +105,17 @@ class Transaction {
       })(),
       userId: map['userId'],
       receiptUrls: List<String>.from(map['receiptUrls'] ?? []),
+      parentTransactionId: map['parentTransactionId'],
+      installmentIndex: (map['installmentIndex'] is int)
+          ? map['installmentIndex'] as int
+          : (map['installmentIndex'] != null)
+              ? int.tryParse(map['installmentIndex'].toString())
+              : null,
+      installmentCount: (map['installmentCount'] is int)
+          ? map['installmentCount'] as int
+          : (map['installmentCount'] != null)
+              ? int.tryParse(map['installmentCount'].toString())
+              : null,
     );
   }
 
@@ -106,6 +129,9 @@ class Transaction {
     DateTime? date,
     String? userId,
     List<String>? receiptUrls,
+    String? parentTransactionId,
+    int? installmentIndex,
+    int? installmentCount,
   }) {
     return Transaction(
       id: id ?? this.id,
@@ -117,12 +143,16 @@ class Transaction {
       date: date ?? this.date,
       userId: userId ?? this.userId,
       receiptUrls: receiptUrls ?? this.receiptUrls,
+      parentTransactionId:
+          parentTransactionId ?? this.parentTransactionId,
+      installmentIndex: installmentIndex ?? this.installmentIndex,
+      installmentCount: installmentCount ?? this.installmentCount,
     );
   }
 
   @override
   String toString() {
-    return 'Transaction(id: $id, title: $title, amount: $amount, type: $type, category: $category, date: $date)';
+    return 'Transaction(id: $id, title: $title, amount: $amount, type: $type, category: $category, date: $date, parentTransactionId: $parentTransactionId, installmentIndex: $installmentIndex, installmentCount: $installmentCount)';
   }
 
   @override

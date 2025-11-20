@@ -1,9 +1,10 @@
-class LoggerService {
-  
+import 'package:flutter/foundation.dart';
 
+class LoggerService {
   static void _log(String level, String message) {
-    
-    return;
+    final ts = DateTime.now().toIso8601String();
+    final formatted = '[$level] $ts | $message';
+    debugPrint(formatted);
   }
 
   static void debug(String message) {

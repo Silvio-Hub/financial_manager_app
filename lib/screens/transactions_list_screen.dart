@@ -28,10 +28,6 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
   double? _maxAmount;
   bool _showFilters = false;
 
-  static const int _pageSize = 20;
-  int _currentPage = 0;
-  bool _isLoadingMore = false;
-  bool _hasMoreData = true;
 
   @override
   void initState() {
@@ -47,10 +43,10 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
       curve: Curves.easeInOut,
     );
 
-    _scrollController.addListener(_onScroll);
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadTransactions(reset: true);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final provider = context.read<FinancialProvider>();
+      await provider.loadTransactionsFromFirestore();
+      if (mounted) setState(() {});
     });
   }
 
@@ -59,54 +55,12 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
     _filterAnimationController.dispose();
     _scrollController.dispose();
     _searchController.dispose();
+    // Removido: não recarregar provider ao sair para evitar limpar o dashboard
     super.dispose();
   }
 
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
-      _loadMoreTransactions();
-    }
-  }
 
-  Future<void> _loadTransactions({bool reset = false}) async {
-    if (reset) {
-      _currentPage = 0;
-      _hasMoreData = true;
-    }
 
-    final provider = context.read<FinancialProvider>();
-    await provider.loadTransactionsWithFiltersFromFirestore(
-      page: _currentPage,
-      pageSize: _pageSize,
-      type: _selectedType,
-      category: _selectedCategory,
-      dateRange: _selectedDateRange,
-      minAmount: _minAmount,
-      maxAmount: _maxAmount,
-      searchQuery: _searchController.text.trim(),
-      reset: reset,
-    );
-    _hasMoreData = provider.hasMoreTransactions;
-    if (reset) {
-      setState(() {});
-    }
-  }
-
-  Future<void> _loadMoreTransactions() async {
-    if (_isLoadingMore || !_hasMoreData) return;
-
-    setState(() {
-      _isLoadingMore = true;
-    });
-
-    _currentPage++;
-    await _loadTransactions();
-
-    setState(() {
-      _isLoadingMore = false;
-    });
-  }
 
   void _toggleFilters() {
     setState(() {
@@ -129,11 +83,10 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
       _maxAmount = null;
       _searchController.clear();
     });
-    _loadTransactions(reset: true);
   }
 
   void _applyFilters() {
-    _loadTransactions(reset: true);
+    setState(() {});
   }
 
   Future<void> _selectDateRange() async {
@@ -205,7 +158,7 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
               ? IconButton(
                   onPressed: () {
                     _searchController.clear();
-                    _loadTransactions(reset: true);
+                    setState(() {});
                   },
                   icon: const Icon(Icons.clear),
                 )
@@ -217,7 +170,7 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
         onChanged: (value) {
           Future.delayed(const Duration(milliseconds: 500), () {
             if (_searchController.text == value) {
-              _loadTransactions(reset: true);
+              setState(() {});
             }
           });
         },
@@ -289,9 +242,7 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
       children: [
         Text(
           'Tipo',
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
         ),
         const SizedBox(height: 8),
         Wrap(
@@ -302,9 +253,7 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
               selected: _selectedType == app_models.TransactionType.income,
               onSelected: (selected) {
                 setState(() {
-                  _selectedType = selected
-                      ? app_models.TransactionType.income
-                      : null;
+                  _selectedType = selected ? app_models.TransactionType.income : null;
                 });
               },
             ),
@@ -313,9 +262,7 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
               selected: _selectedType == app_models.TransactionType.expense,
               onSelected: (selected) {
                 setState(() {
-                  _selectedType = selected
-                      ? app_models.TransactionType.expense
-                      : null;
+                  _selectedType = selected ? app_models.TransactionType.expense : null;
                 });
               },
             ),
@@ -324,9 +271,7 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
         const SizedBox(height: 12),
         Text(
           'Categoria',
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
         ),
         const SizedBox(height: 6),
         Wrap(
@@ -359,9 +304,7 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
       children: [
         Text(
           'Valor',
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
         ),
         const SizedBox(height: 8),
         Row(
@@ -405,9 +348,7 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
       children: [
         Text(
           'Período',
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
         ),
         const SizedBox(height: 8),
         InkWell(
@@ -446,24 +387,64 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
     );
   }
 
-  // Helper to filter installments to current month only
+  // Helper para verificar se é o mesmo mês
   bool _isSameMonth(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month;
   }
-  
-  List<app_models.Transaction> _visibleTransactions(
-      List<app_models.Transaction> items) {
+
+  // Aplica todos os filtros localmente sobre provider.transactions
+  List<app_models.Transaction> _applyLocalFilters(List<app_models.Transaction> items) {
     final DateTime now = DateTime.now();
+    final String query = _searchController.text.trim().toLowerCase();
+
     return items.where((t) {
+      // Parceladas: mostrar apenas a parcela do mês atual
       final bool isInstallment = t.parentTransactionId != null;
-      if (!isInstallment) return true;
-      return _isSameMonth(t.date, now);
-    }).toList();
+      if (isInstallment && !_isSameMonth(t.date, now)) {
+        return false;
+      }
+
+      // Tipo
+      if (_selectedType != null && t.type != _selectedType) return false;
+
+      // Categoria
+      if (_selectedCategory != null && t.category != _selectedCategory) return false;
+
+      // Período
+      if (_selectedDateRange != null) {
+        final start = DateTime(
+          _selectedDateRange!.start.year,
+          _selectedDateRange!.start.month,
+          _selectedDateRange!.start.day,
+        );
+        final end = DateTime(
+          _selectedDateRange!.end.year,
+          _selectedDateRange!.end.month,
+          _selectedDateRange!.end.day,
+          23, 59, 59,
+        );
+        if (t.date.isBefore(start) || t.date.isAfter(end)) return false;
+      }
+
+      // Valores
+      if (_minAmount != null && t.amount < _minAmount!) return false;
+      if (_maxAmount != null && t.amount > _maxAmount!) return false;
+
+      // Busca
+      if (query.isNotEmpty) {
+        final hay = '${t.title} ${t.description}'.toLowerCase();
+        if (!hay.contains(query)) return false;
+      }
+
+      return true;
+    }).toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
   }
+
   Widget _buildTransactionsList() {
     return Consumer<FinancialProvider>(
       builder: (context, provider, child) {
-        final visible = _visibleTransactions(provider.transactions);
+        final visible = _applyLocalFilters(provider.transactions);
         if (provider.isLoading && visible.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -499,23 +480,16 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
         }
 
         return RefreshIndicator(
-          onRefresh: () => _loadTransactions(reset: true),
+          onRefresh: () async {
+            final provider = context.read<FinancialProvider>();
+            await provider.loadTransactionsFromFirestore();
+            if (mounted) setState(() {});
+          },
           child: ListView.builder(
             controller: _scrollController,
             padding: const EdgeInsets.all(16),
-            itemCount:
-                visible.length +
-                ((_isLoadingMore && _hasMoreData) ? 1 : 0),
+            itemCount: visible.length,
             itemBuilder: (context, index) {
-              if (index == visible.length && _hasMoreData) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              }
-
               final transaction = visible[index];
               return _buildTransactionCard(transaction);
             },
@@ -657,6 +631,7 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
   Future<void> _editTransaction(app_models.Transaction transaction) async {
     Navigator.pop(context);
 
+    final provider = context.read<FinancialProvider>();
     final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
@@ -665,13 +640,18 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
       ),
     );
 
+    if (!mounted) return;
     if (result == true) {
-      _loadTransactions(reset: true);
+      await provider.loadTransactionsFromFirestore();
+      setState(() {});
     }
   }
 
   Future<void> _deleteTransaction(app_models.Transaction transaction) async {
     Navigator.pop(context);
+
+    final messenger = ScaffoldMessenger.of(context);
+    final provider = context.read<FinancialProvider>();
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -694,22 +674,22 @@ class _TransactionsListScreenState extends State<TransactionsListScreen>
 
     if (confirmed == true && mounted) {
       try {
-        final provider = context.read<FinancialProvider>();
         await provider.removeTransactionWithSync(transaction.id);
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          messenger.showSnackBar(
             const SnackBar(
               content: Text('Transação excluída com sucesso!'),
               backgroundColor: Colors.green,
             ),
           );
 
-          _loadTransactions(reset: true);
+          await provider.loadTransactionsFromFirestore();
+          if (mounted) setState(() {});
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          messenger.showSnackBar(
             SnackBar(
               content: Text('Erro ao excluir transação: $e'),
               backgroundColor: Colors.red,

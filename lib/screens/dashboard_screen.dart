@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:animations/animations.dart';
 import '../providers/financial_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/user_provider.dart';
 import '../widgets/animated_pie_chart.dart';
 import '../widgets/animated_line_chart.dart';
 import '../widgets/animated_bar_chart.dart';
@@ -106,10 +107,18 @@ class _DashboardScreenState extends State<DashboardScreen>
             icon: const Icon(Icons.list_alt, color: Colors.white),
             tooltip: 'Ver todas as transações',
           ),
-          IconButton(
-            onPressed: () => _showProfileMenu(context),
-            icon: const Icon(Icons.account_circle, color: Colors.white),
-            tooltip: 'Perfil',
+          // Replace static icon with avatar + fallback
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () => _showProfileMenu(context),
+              child: const CircleAvatar(
+                radius: 22,
+                backgroundColor: Colors.transparent,
+                child: Icon(Icons.account_circle, color: Colors.white, size: 26),
+              ),
+            ),
           ),
         ],
       ),
@@ -189,8 +198,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                               builder: (context, authProvider, child) {
                                 final user = authProvider.user;
                                 return Text(
-                                  user?.email != null
-                                      ? user!.email.split('@').first
+                                  (user?.name != null && user!.name!.isNotEmpty)
+                                      ? user.name!
                                       : 'Usuário',
                                   style: Theme.of(context)
                                       .textTheme
@@ -204,13 +213,33 @@ class _DashboardScreenState extends State<DashboardScreen>
                             ),
                           ],
                         ),
-                        IconButton(
-                          onPressed: () => _showProfileMenu(context),
-                          icon: const Icon(
-                            Icons.account_circle,
-                            color: Colors.white,
-                            size: 32,
-                          ),
+                        Consumer<UserProvider>(
+                          builder: (context, userProvider, child) {
+                            final user = userProvider.user;
+                            return GestureDetector(
+                              onTap: () => _showProfileMenu(context),
+                              child: CircleAvatar(
+                                radius: 28,
+                                backgroundColor:
+                                    Colors.white.withValues(alpha: 0.2),
+                                backgroundImage: (user.profileImageUrl != null &&
+                                        user.profileImageUrl!.isNotEmpty)
+                                    ? NetworkImage(user.profileImageUrl!)
+                                    : null,
+                                child: (user.profileImageUrl == null ||
+                                        user.profileImageUrl!.isEmpty)
+                                    ? Text(
+                                        user.initials,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),

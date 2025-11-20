@@ -20,6 +20,32 @@ service firebase.storage {
       allow update: if request.auth != null && request.auth.uid == uid;
     }
 
+    // Fotos de perfil: permitir somente ao usuário autenticado dono do caminho
+    match /profiles/{uid}/{allPaths=**} {
+      // Leitura (inclui listagem): apenas usuário autenticado e dono
+      allow read: if request.auth != null && request.auth.uid == uid;
+      // Criação (upload): usuário autenticado, dono, tamanho < 20MB e tipo de imagem
+      allow create: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.size < 20 * 1024 * 1024
+                    && request.resource.contentType.matches('image/.*');
+      // Deleção: permitir ao dono
+      allow delete: if request.auth != null && request.auth.uid == uid;
+      // Atualização de metadados: permitir ao dono
+      allow update: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Compatibilidade: alguns builds antigos usam users/{uid}/** para fotos
+    match /users/{uid}/{allPaths=**} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.size < 20 * 1024 * 1024
+                    && request.resource.contentType.matches('image/.*');
+      allow delete: if request.auth != null && request.auth.uid == uid;
+      allow update: if request.auth != null && request.auth.uid == uid;
+    }
+
     // Negar acesso ao restante
     match /{allPaths=**} {
       allow read, write: if false;

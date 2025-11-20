@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../providers/user_provider.dart';
-import '../models/user.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/loading_widget.dart';
+import '../providers/user_provider.dart';
+import '../providers/auth_provider.dart' show AuthProvider;
+import '../models/user.dart';
 import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -18,9 +19,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<UserProvider>().loadUserFromLocal();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final userProvider = context.read<UserProvider>();
+      // Se já temos dados locais, não dispare carregamentos extras
+      if (userProvider.hasUser) {
+        userProvider.clearError();
+        return;
+      }
+      final auth = context.read<AuthProvider>();
+      if (auth.isAuthenticated && auth.user != null) {
+        await userProvider.loadUserFromFirestore(auth.user!.id);
+      } else {
+        await userProvider.loadUserFromLocal();
+      }
     });
+  }
+
+  Widget _buildErrorState(String error) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+          const SizedBox(height: 16),
+          Text(
+            'Erro ao carregar perfil',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            error,
+            style: Theme.of(context).textTheme.bodyMedium,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () async {
+              final auth = context.read<AuthProvider>();
+              final userProvider = context.read<UserProvider>();
+              userProvider.clearError();
+              if (auth.isAuthenticated && auth.user != null) {
+                await userProvider.loadUserFromFirestore(auth.user!.id);
+              } else {
+                await userProvider.loadUserFromLocal();
+              }
+            },
+            child: const Text('Tentar Novamente'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -50,35 +98,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         onPressed: () => _navigateToEditProfile(),
         backgroundColor: Theme.of(context).primaryColor,
         child: const Icon(Icons.edit, color: Colors.white),
-      ),
-    );
-  }
-
-  Widget _buildErrorState(String error) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
-          const SizedBox(height: 16),
-          Text(
-            'Erro ao carregar perfil',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            error,
-            style: Theme.of(context).textTheme.bodyMedium,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () {
-              context.read<UserProvider>().loadUserFromLocal();
-            },
-            child: const Text('Tentar Novamente'),
-          ),
-        ],
       ),
     );
   }
@@ -389,10 +408,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return DateFormat('dd/MM/yyyy').format(date);
   }
 
-  void _navigateToEditProfile() {
-    Navigator.push(
+  Future<void> _navigateToEditProfile() async {
+    final result = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const EditProfileScreen()),
     );
+    if (result == true && mounted) {
+      final auth = context.read<AuthProvider>();
+      final userProvider = context.read<UserProvider>();
+      userProvider.clearError();
+      if (auth.isAuthenticated && auth.user != null) {
+        await userProvider.loadUserFromFirestore(auth.user!.id);
+      } else {
+        await userProvider.loadUserFromLocal();
+      }
+    }
   }
 }

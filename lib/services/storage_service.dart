@@ -374,7 +374,7 @@ class StorageService {
     required String transactionId,
     required String fileExtension,
   }) async {
-    LoggerService.info('=== INICIANDO UPLOAD PARA STORAGE ===');
+    LoggerService.info('=== INICIANDO UPLOAD PARA STORAGE (RECIBO) ===');
     LoggerService.info('fileName: $fileName');
     LoggerService.info('transactionId: $transactionId');
     LoggerService.info('fileExtension: $fileExtension');
@@ -408,114 +408,65 @@ class StorageService {
         throw Exception('Arquivo muito grande. Limite: 20MB.');
       }
 
+      if (!isSupportedFile(fileName)) {
+        throw Exception('Tipo de arquivo não suportado. Use imagem ou PDF.');
+      }
+
       final derivedExt = path
           .extension(fileName)
           .replaceFirst('.', '')
           .toLowerCase();
-      String effectiveExtension;
-      if (derivedExt.isEmpty) {
-        effectiveExtension = fileExtension.toLowerCase();
-      } else {
-        effectiveExtension = derivedExt;
-        if (fileExtension.toLowerCase() != derivedExt) {
-          LoggerService.warning(
-            'Extensão passada ("$fileExtension") difere da derivada ("$derivedExt"). Usando a derivada.',
-          );
-        }
+      final effectiveExtension = (derivedExt.isNotEmpty
+          ? derivedExt
+          : (fileExtension).toLowerCase());
+      if (effectiveExtension.isEmpty) {
+        throw Exception('Não foi possível determinar a extensão do arquivo.');
       }
 
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final sanitizedFileName = _sanitizeFileName(fileName);
-      LoggerService.info('sanitizedFileName: $sanitizedFileName');
       final fullFileName =
           '${timestamp}_$sanitizedFileName.$effectiveExtension';
-      LoggerService.info('fullFileName: $fullFileName');
       final storagePath =
           'receipts/$currentUserId/$transactionId/$fullFileName';
       final contentType = _getContentType(effectiveExtension);
-      LoggerService.info('contentType: $contentType');
-
-      LoggerService.info('Subindo para Storage em: $storagePath');
-      final ref = _storage.ref().child(storagePath);
       final metadata = SettableMetadata(contentType: contentType);
+
+      final ref = _storage.ref().child(storagePath);
       if (file is File) {
         await ref.putFile(file, metadata);
       } else {
         await ref.putData(bytes, metadata);
       }
       final downloadUrl = await ref.getDownloadURL();
-      LoggerService.info('Upload no Storage concluído. URL obtida.');
+      LoggerService.info('Upload de recibo concluído. URL: $downloadUrl');
 
       final receiptData = {
-        'fileName': fullFileName,
-        'originalFileName': fileName,
-        'fileExtension': fileExtension,
-        'fileSize': bytes.length,
-        'transactionId': transactionId,
         'userId': currentUserId,
-        'uploadDate': FieldValue.serverTimestamp(),
+        'transactionId': transactionId,
+        'fileName': fullFileName,
+        'fileExtension': effectiveExtension,
         'contentType': contentType,
-        'storagePath': storagePath,
+        'fileSize': bytes.length,
         'downloadUrl': downloadUrl,
+        'uploadDate': Timestamp.now(),
       };
-
-      LoggerService.info('Salvando recibo no Firestore...');
 
       final docRef = await FirebaseFirestore.instance
           .collection('receipts')
           .add(receiptData);
 
-      LoggerService.info('Recibo salvo com ID: ${docRef.id}');
-
-      try {
-        LoggerService.info('Adicionando URL do recibo à transação...');
-        await FirestoreService.addReceiptToTransaction(
-          transactionId,
-          downloadUrl,
-        );
-        LoggerService.info('URL do recibo adicionada à transação com sucesso');
-      } catch (e) {
-        LoggerService.warning(
-          'Erro ao adicionar URL do recibo à transação: $e',
-        );
-      }
-
+      LoggerService.info('Documento de recibo criado: ${docRef.id}');
       return docRef.id;
     } on FirebaseException catch (e) {
       LoggerService.error(
-        'FirebaseException no upload: ${e.code} - ${e.message}',
+        'FirebaseException no upload de recibo: ${e.code} - ${e.message}',
         e,
       );
       rethrow;
     } catch (e) {
-      LoggerService.error('Erro no upload para Storage: $e', e);
-      throw Exception('Erro no upload: $e');
-    }
-  }
-
-  static String _getContentType(String extension) {
-    switch (extension.toLowerCase()) {
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'png':
-        return 'image/png';
-      case 'gif':
-        return 'image/gif';
-      case 'bmp':
-        return 'image/bmp';
-      case 'webp':
-        return 'image/webp';
-      case 'heic':
-        return 'image/heic';
-      case 'heif':
-        return 'image/heif';
-      case 'pdf':
-        return 'application/pdf';
-      case 'txt':
-        return 'text/plain';
-      default:
-        return 'application/octet-stream';
+      LoggerService.error('Erro no upload de recibo: $e', e);
+      throw Exception('Erro no upload de recibo: $e');
     }
   }
 
@@ -816,6 +767,139 @@ class StorageService {
     } catch (e) {
       LoggerService.error('Erro ao deletar recibo local: $e', e);
       throw Exception('Erro ao deletar recibo: $e');
+    }
+  }
+  static Future<String> uploadProfileImage({
+    required dynamic file,
+    required String fileName,
+    String? fileExtension,
+  }) async {
+    LoggerService.info('=== INICIANDO UPLOAD DE FOTO DE PERFIL ===');
+    LoggerService.info(
+      'Bucket configurado: ${DefaultFirebaseOptions.currentPlatform.storageBucket}',
+    );
+
+    if (!isUserAuthenticated) {
+      LoggerService.error('Usuário não autenticado');
+      throw Exception('Usuário não autenticado. Faça login novamente.');
+    }
+    final uid = currentUserId;
+    LoggerService.info('Usuário autenticado: $uid');
+
+    try {
+      Uint8List bytes;
+      if (file is File) {
+        bytes = await file.readAsBytes();
+      } else if (file is Uint8List) {
+        bytes = file;
+      } else {
+        throw Exception('Tipo de arquivo não suportado');
+      }
+
+      if (bytes.length > maxUploadSizeBytes) {
+        throw Exception('Arquivo muito grande. Limite: 20MB.');
+      }
+
+      if (!isValidImageFile(fileName)) {
+        throw Exception('Tipo de arquivo inválido. Selecione apenas imagens.');
+      }
+
+      final derivedExt = path
+          .extension(fileName)
+          .replaceFirst('.', '')
+          .toLowerCase();
+      final effectiveExtension = (derivedExt.isNotEmpty
+          ? derivedExt
+          : (fileExtension ?? '').toLowerCase());
+      if (effectiveExtension.isEmpty) {
+        throw Exception('Não foi possível determinar a extensão da imagem.');
+      }
+      final contentType = _getContentType(effectiveExtension);
+
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final sanitizedFileName = _sanitizeFileName(fileName);
+      final finalFileName =
+          '${timestamp}_$sanitizedFileName.$effectiveExtension';
+      LoggerService.info('finalFileName: $finalFileName');
+
+      final metadata = SettableMetadata(contentType: contentType);
+
+      Future<String> attemptUpload(String storagePath) async {
+        LoggerService.info('Upload de perfil para: $storagePath');
+        final ref = _storage.ref().child(storagePath);
+        if (file is File) {
+          await ref.putFile(file, metadata);
+        } else {
+          await ref.putData(bytes, metadata);
+        }
+        final url = await ref.getDownloadURL();
+        LoggerService.info('Upload concluído. URL: $url');
+        return url;
+      }
+
+      final primaryPath = 'profiles/$uid/$finalFileName';
+      try {
+        return await attemptUpload(primaryPath);
+      } on FirebaseException catch (e) {
+        LoggerService.error(
+          'Falha no caminho principal (profiles): ${e.code} - ${e.message}',
+          e,
+        );
+        final code = e.code.toLowerCase();
+        final msg = (e.message ?? '').toLowerCase();
+        final isAuthDenied = code.contains('unauthorized') ||
+            code.contains('permission-denied') ||
+            code.contains('storage/unauthorized') ||
+            code.contains('storage/permission-denied') ||
+            msg.contains('not authorized') ||
+            msg.contains('permission');
+        if (isAuthDenied) {
+          final altPath = 'users/$uid/$finalFileName';
+          LoggerService.info('Tentando caminho alternativo (users): $altPath');
+          try {
+            return await attemptUpload(altPath);
+          } on FirebaseException catch (e2) {
+            LoggerService.error(
+              'Falha também no caminho alternativo (users): ${e2.code} - ${e2.message}',
+              e2,
+            );
+            rethrow;
+          }
+        }
+        rethrow;
+      }
+    } on FirebaseException catch (e) {
+      LoggerService.error(
+        'FirebaseException no upload de perfil: ${e.code} - ${e.message}',
+        e,
+      );
+      rethrow;
+    } catch (e) {
+      LoggerService.error('Erro no upload de foto de perfil: $e', e);
+      throw Exception('Erro no upload de foto de perfil: $e');
+    }
+  }
+
+  static String _getContentType(String ext) {
+    switch (ext.toLowerCase()) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'bmp':
+        return 'image/bmp';
+      case 'webp':
+        return 'image/webp';
+      case 'heic':
+      case 'heif':
+        return 'image/heic';
+      case 'pdf':
+        return 'application/pdf';
+      default:
+        return 'application/octet-stream';
     }
   }
 }

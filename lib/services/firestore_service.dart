@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/transaction.dart' as app_models;
+import '../models/user.dart' as app_user;
 
 class FirestoreService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -443,6 +444,54 @@ class FirestoreService {
       await _firestore.clearPersistence();
     } catch (e) {
       throw Exception('Erro ao limpar cache: $e');
+    }
+  }
+
+  // User profile helpers (inside class)
+  static CollectionReference get _usersCollection => _firestore.collection('users');
+
+  static Future<void> upsertUserProfile(app_user.User user) async {
+    try {
+      final uid = (currentUserId?.isNotEmpty == true) ? currentUserId! : user.id;
+      if (uid.isEmpty) {
+        throw Exception('ID de usuário inválido ao salvar perfil');
+      }
+      // Garantir consistência dos campos id/email no documento
+      final data = {
+        ...user.toMap(),
+        'id': user.id.isNotEmpty ? user.id : uid,
+        'email': (user.email.isNotEmpty ? user.email : (_auth.currentUser?.email ?? '')),
+      };
+      await _usersCollection.doc(uid).set(data, SetOptions(merge: true));
+    } catch (e) {
+      throw Exception('Erro ao salvar perfil do usuário: $e');
+    }
+  }
+
+  static Future<app_user.User?> getUserProfile(String userId) async {
+    try {
+      final doc = await _usersCollection.doc(userId).get();
+      if (!doc.exists) return null;
+      final data = doc.data() as Map<String, dynamic>;
+      // Preencher id/email se faltarem no documento
+      final enriched = {
+        ...data,
+        'id': (data['id'] is String && (data['id'] as String).isNotEmpty) ? data['id'] : userId,
+        'email': (data['email'] is String && (data['email'] as String).isNotEmpty)
+            ? data['email']
+            : (_auth.currentUser?.email ?? ''),
+      };
+      return app_user.User.fromMap(enriched);
+    } catch (e) {
+      throw Exception('Erro ao carregar perfil do usuário: $e');
+    }
+  }
+
+  static Future<void> updateUserProfile(String userId, Map<String, dynamic> data) async {
+    try {
+      await _usersCollection.doc(userId).set(data, SetOptions(merge: true));
+    } catch (e) {
+      throw Exception('Erro ao atualizar perfil do usuário: $e');
     }
   }
 }

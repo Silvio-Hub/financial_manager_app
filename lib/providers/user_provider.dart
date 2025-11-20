@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
 import '../services/logger_service.dart';
+import '../services/firestore_service.dart';
 
 class UserProvider with ChangeNotifier {
   User _user = User.empty();
@@ -96,29 +97,14 @@ class UserProvider with ChangeNotifier {
       _user = updatedUser;
 
       await _saveUserToLocal();
+      // Persistir no Firestore
+      await FirestoreService.upsertUserProfile(_user);
 
       LoggerService.debug('Dados do usuário atualizados com sucesso');
       notifyListeners();
     } catch (e) {
       LoggerService.error('Erro ao atualizar dados do usuário: $e', e);
       _setError('Erro ao atualizar dados do usuário');
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  Future<void> setUser(User user) async {
-    _setLoading(true);
-    _setError(null);
-
-    try {
-      _user = user;
-      await _saveUserToLocal();
-      LoggerService.debug('Usuário definido: ${user.name}');
-      notifyListeners();
-    } catch (e) {
-      LoggerService.error('Erro ao definir usuário: $e', e);
-      _setError('Erro ao definir usuário');
     } finally {
       _setLoading(false);
     }
@@ -145,12 +131,52 @@ class UserProvider with ChangeNotifier {
 
       _user = newUser;
       await _saveUserToLocal();
+      // Criar/atualizar documento no Firestore
+      await FirestoreService.upsertUserProfile(_user);
 
       LoggerService.debug('Novo usuário criado: $name');
       notifyListeners();
     } catch (e) {
       LoggerService.error('Erro ao criar usuário: $e', e);
       _setError('Erro ao criar usuário');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> loadUserFromFirestore(String userId) async {
+    _setLoading(true);
+    _setError(null);
+    try {
+      final remoteUser = await FirestoreService.getUserProfile(userId);
+      if (remoteUser != null) {
+        _user = remoteUser;
+        await _saveUserToLocal();
+        LoggerService.debug('Perfil carregado do Firestore para o usuário $userId');
+        notifyListeners();
+      } else {
+        LoggerService.debug('Perfil não encontrado no Firestore, mantendo dados locais');
+      }
+    } catch (e) {
+      LoggerService.error('Erro ao carregar perfil do Firestore: $e', e);
+      _setError('Erro ao carregar perfil do usuário');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> setUser(User user) async {
+    _setLoading(true);
+    _setError(null);
+
+    try {
+      _user = user;
+      await _saveUserToLocal();
+      LoggerService.debug('Usuário definido: ${user.name}');
+      notifyListeners();
+    } catch (e) {
+      LoggerService.error('Erro ao definir usuário: $e', e);
+      _setError('Erro ao definir usuário');
     } finally {
       _setLoading(false);
     }
@@ -188,11 +214,13 @@ class UserProvider with ChangeNotifier {
     if (_user.email.isNotEmpty) filledFields++;
     if (_user.phone != null && _user.phone!.isNotEmpty) filledFields++;
     if (_user.birthDate != null) filledFields++;
-    if (_user.occupation != null && _user.occupation!.isNotEmpty)
+    if (_user.occupation != null && _user.occupation!.isNotEmpty) {
       filledFields++;
+    }
     if (_user.bio != null && _user.bio!.isNotEmpty) filledFields++;
-    if (_user.profileImageUrl != null && _user.profileImageUrl!.isNotEmpty)
+    if (_user.profileImageUrl != null && _user.profileImageUrl!.isNotEmpty) {
       filledFields++;
+    }
 
     return filledFields / totalFields;
   }

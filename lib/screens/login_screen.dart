@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:animations/animations.dart';
 import '../providers/auth_provider.dart';
 import '../constants/app_strings.dart';
+import '../utils/validators.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,6 +15,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen>
     with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
@@ -63,6 +65,7 @@ class _LoginScreenState extends State<LoginScreen>
   void dispose() {
     _fadeAnimationController.dispose();
     _slideAnimationController.dispose();
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -89,7 +92,7 @@ class _LoginScreenState extends State<LoginScreen>
       success = await authProvider.register(
         _emailController.text.trim(),
         _passwordController.text,
-        'Usuário',
+        _nameController.text.trim(),
       );
     }
 
@@ -215,6 +218,10 @@ class _LoginScreenState extends State<LoginScreen>
       key: _formKey,
       child: Column(
         children: [
+          if (!_isLoginMode) ...[
+            _buildNameField(),
+            const SizedBox(height: 16),
+          ],
           _buildEmailField(),
           const SizedBox(height: 16),
           _buildPasswordField(),
@@ -244,6 +251,24 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
+  Widget _buildNameField() {
+    return TextFormField(
+      controller: _nameController,
+      textCapitalization: TextCapitalization.words,
+      decoration: InputDecoration(
+        labelText: 'Nome completo',
+        prefixIcon: const Icon(Icons.person_outline),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        filled: true,
+        fillColor: Theme.of(context)
+            .colorScheme
+            .surfaceContainerHighest
+            .withValues(alpha: 0.3),
+      ),
+      validator: (value) => Validators.fullName(value),
+    );
+  }
+
   Widget _buildEmailField() {
     return TextFormField(
       controller: _emailController,
@@ -261,7 +286,7 @@ class _LoginScreenState extends State<LoginScreen>
         if (value == null || value.isEmpty) {
           return 'Por favor, insira seu email';
         }
-        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+        if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value)) {
           return 'Por favor, insira um email válido';
         }
         return null;

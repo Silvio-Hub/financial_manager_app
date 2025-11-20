@@ -86,6 +86,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
       final authProvider = context.read<AuthProvider>();
       final userProvider = context.read<UserProvider>();
       authProvider.setUserProvider(userProvider);
+      // Carregar perfil do Firestore quando autenticado
+      if (authProvider.isAuthenticated && authProvider.user != null) {
+        userProvider.loadUserFromFirestore(authProvider.user!.id);
+      } else {
+        // fallback: carregar do local
+        userProvider.loadUserFromLocal();
+      }
     });
   }
 

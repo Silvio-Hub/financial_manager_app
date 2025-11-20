@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as path;
 import '../providers/user_provider.dart';
 import '../models/user.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/loading_widget.dart';
 import '../widgets/custom_text_field.dart';
+import '../services/storage_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -403,9 +406,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 leading: const Icon(Icons.photo_camera),
                 title: const Text('Câmera'),
                 onTap: () {
-                  Navigator.pop(context);
-                  _pickImageFromCamera();
-                },
+                    Navigator.pop(context);
+                    _pickImageFromCamera();
+                  },
               ),
               if (context.read<UserProvider>().user.profileImageUrl != null)
                 ListTile(
@@ -423,20 +426,47 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
+  Future<void> _pickAndUploadImage(ImageSource source) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final userProvider = context.read<UserProvider>();
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: source, maxWidth: 1024, maxHeight: 1024, imageQuality: 85);
+      if (picked == null) return;
+
+      final bytes = await picked.readAsBytes();
+      final fileName = picked.name.isNotEmpty ? picked.name : path.basename(picked.path);
+
+      final url = await StorageService.uploadProfileImage(
+        file: bytes,
+        fileName: fileName,
+      );
+
+      await userProvider.updateProfileImage(url);
+      userProvider.clearError();
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Foto de perfil atualizada com sucesso!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      setState(() {});
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Falha ao atualizar foto de perfil: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   void _pickImageFromGallery() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Funcionalidade de galeria será implementada em breve'),
-      ),
-    );
+    _pickAndUploadImage(ImageSource.gallery);
   }
 
   void _pickImageFromCamera() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Funcionalidade de câmera será implementada em breve'),
-      ),
-    );
+    _pickAndUploadImage(ImageSource.camera);
   }
 
   void _removeProfileImage() {
@@ -472,6 +502,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             : _bioController.text.trim(),
       );
 
+      userProvider.clearError();
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -479,7 +511,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context);
+        Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {

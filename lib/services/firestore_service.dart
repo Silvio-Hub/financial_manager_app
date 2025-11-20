@@ -22,6 +22,13 @@ class FirestoreService {
         .collection('transactions');
   }
 
+  static CollectionReference transactionsCollectionFor(String userId) {
+    return _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('transactions');
+  }
+
   static Future<void> addTransaction(app_models.Transaction transaction) async {
     try {
       await _userTransactionsCollection

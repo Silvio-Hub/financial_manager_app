@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as rp show ProviderScope;
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
+import 'bootstrap.dart';
+import 'services/firestore_service.dart';
 import 'providers/theme_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/financial_provider.dart';
@@ -19,6 +24,15 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    // Habilitar persistência no web para cache offline (API nova)
+    if (kIsWeb) {
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+        ignoreUndefinedProperties: true,
+      );
+    }
   } catch (e) {
     if (e.toString().contains('duplicate-app')) {
     } else {
@@ -26,7 +40,10 @@ void main() async {
     }
   }
 
-  runApp(const FinancialManagerApp());
+  // Setup DI (GetIt) com serviços atuais
+  setupDependencies(FirestoreService());
+
+  runApp(const rp.ProviderScope(child: FinancialManagerApp()));
 }
 
 class FinancialManagerApp extends StatelessWidget {

@@ -39,6 +39,11 @@ class CustomTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final inputTheme = theme.inputDecorationTheme;
+    final baseFillColor = inputTheme.fillColor ?? theme.canvasColor;
+
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
@@ -51,44 +56,23 @@ class CustomTextField extends StatelessWidget {
       maxLines: maxLines,
       maxLength: maxLength,
       enabled: enabled,
+      style: TextStyle(color: cs.onSurface),
+      cursorColor: cs.primary,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null,
+        prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: cs.onSurface) : null,
         suffixIcon: suffixIcon,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: Colors.grey.shade300,
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: Theme.of(context).primaryColor,
-            width: 2,
-          ),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(
-            color: Colors.red,
-          ),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(
-            color: Colors.red,
-            width: 2,
-          ),
-        ),
-        filled: true,
-        fillColor: enabled 
-          ? Colors.grey.shade50 
-          : Colors.grey.shade100,
+        border: inputTheme.border,
+        enabledBorder: inputTheme.enabledBorder,
+        focusedBorder: inputTheme.focusedBorder,
+        errorBorder: inputTheme.errorBorder,
+        focusedErrorBorder: inputTheme.focusedErrorBorder,
+        // filled herdado do InputDecorationTheme
+        fillColor: enabled ? baseFillColor : baseFillColor.withValues(alpha: 0.85),
+        contentPadding: inputTheme.contentPadding,
+        labelStyle: TextStyle(color: cs.onSurface),
+        hintStyle: TextStyle(color: cs.onSurface.withValues(alpha: 0.9)),
       ),
     );
   }

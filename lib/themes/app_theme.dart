@@ -146,19 +146,21 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       
-      // Esquema de cores
+      // Esquema de cores - reforço AAA
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primaryBlue,
         brightness: Brightness.dark,
-        primary: AppColors.primaryBlueLight,
-        onPrimary: AppColors.darkBackground,
-        secondary: AppColors.primaryBlue,
+        primary: AppColors.primaryBlue,
+        onPrimary: Colors.white, // garantir contraste em superfícies primárias
+        secondary: AppColors.primaryBlueLight,
         onSecondary: Colors.white,
         error: AppColors.errorLight,
-        onError: AppColors.darkBackground,
+        onError: Colors.white,
         surface: AppColors.darkSurface,
         onSurface: AppColors.darkOnSurface,
         onSurfaceVariant: AppColors.darkOnSurfaceVariant,
+        // background e onBackground removidos (deprecados); usar surface/onSurface
+
       ),
       
       // AppBar Theme
@@ -186,13 +188,13 @@ class AppTheme {
         ),
       ),
       
-      // Elevated Button Theme
+      // Elevated Button Theme (contraste alto)
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           elevation: 3,
           shadowColor: AppColors.darkShadow,
-          backgroundColor: AppColors.primaryBlueLight,
-          foregroundColor: AppColors.darkBackground,
+          backgroundColor: AppColors.primaryBlue,
+          foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -207,8 +209,8 @@ class AppTheme {
       // Outlined Button Theme
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.primaryBlueLight,
-          side: const BorderSide(color: AppColors.primaryBlueLight, width: 1.5),
+          foregroundColor: Colors.white,
+          side: const BorderSide(color: Colors.white, width: 1.5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -234,21 +236,21 @@ class AppTheme {
         ),
       ),
       
-      // Input Decoration Theme
+      // Input Decoration Theme (contraste alto)
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.darkSurfaceVariant,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.darkBorder),
+          borderSide: const BorderSide(color: AppColors.darkOnSurfaceVariant),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.darkBorder),
+          borderSide: const BorderSide(color: AppColors.darkOnSurfaceVariant),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primaryBlueLight, width: 2),
+          borderSide: const BorderSide(color: AppColors.primaryBlue, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -259,8 +261,8 @@ class AppTheme {
           borderSide: const BorderSide(color: AppColors.errorLight, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        labelStyle: const TextStyle(color: AppColors.darkOnSurfaceVariant),
-        hintStyle: const TextStyle(color: AppColors.darkOnSurfaceVariant),
+        labelStyle: const TextStyle(color: AppColors.darkOnSurface),
+        hintStyle: const TextStyle(color: AppColors.darkOnSurface),
       ),
       
       // Divider Theme

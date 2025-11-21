@@ -15,6 +15,7 @@ Aplicativo Flutter para gestão financeira pessoal, com autenticação, transaç
 - Injeção de dependências com GetIt (`lib/bootstrap.dart`)
 - Repositório de Transações com paginação e filtros (Firestore)
 - Persistência offline habilitada no Web (Firestore Settings API)
+- Cache local com Hive para resumo financeiro e lista de transações (TTL, seed/write-through e logs)
 
 ## Tecnologias
 - Flutter 3.x
@@ -22,6 +23,7 @@ Aplicativo Flutter para gestão financeira pessoal, com autenticação, transaç
 - Estado: Provider (módulos existentes) + Riverpod (novas features)
 - DI: GetIt
 - UI: Material Design
+- Cache: Hive/Hive Flutter
 
 ## Estrutura de Pastas (resumo)
 ```
@@ -40,7 +42,7 @@ lib/
   models/                       # Transaction, User, Summary
   providers/                    # Providers (Provider)
   screens/                      # Login, Dashboard, Transações, Perfil
-  services/                     # Auth, Firestore, Storage, Logger
+  services/                     # Auth, Firestore, Storage, Logger, Cache (Hive)
   widgets/, themes/, utils/
 ```
 
@@ -51,7 +53,8 @@ lib/
 - `get_it`
 - `rxdart`
 - `cached_network_image`
-- Outras: `intl`, `fl_chart`, `email_validator`, `file_picker`, `image_picker`, `path`, `syncfusion_flutter_pdfviewer`
+- `intl`, `fl_chart`, `email_validator`, `file_picker`, `image_picker`, `path`, `syncfusion_flutter_pdfviewer`
+- `hive`, `hive_flutter`
 
 Consulte `pubspec.yaml` para versões e a lista completa.
 
@@ -79,10 +82,32 @@ Guias:
 
 ## Estado e DI
 - Provider permanece para módulos existentes
-- Riverpod adicionado para Transações e novas features. Em `main.dart` usamos alias apenas para `ProviderScope`:
+- Riverpod adicionado para Transações e novas features. Em `main.dart` podemos usar alias apenas para `ProviderScope`:
   - `import 'package:flutter_riverpod/flutter_riverpod.dart' as rp show ProviderScope;`
   - `runApp(const rp.ProviderScope(child: FinancialManagerApp()));`
 - DI: `setupDependencies(FirestoreService())` registra serviços, repositórios e casos de uso (GetIt)
+
+## Cache Local (Hive)
+- Serviço: `lib/services/cache_service.dart`.
+- Inicialização: `lib/main.dart` registra `CacheService` no `GetIt` após `Firebase.initializeApp`.
+- Resumo financeiro:
+  - `summaryByRangeStreamProvider` semeia com cache (seed) e faz write-through ao atualizar; TTL padrão 10 min.
+- Transações:
+  - `lib/data/repositories/transactions_repository_impl.dart`
+    - `watchByUser`: emite primeiro o cache (SEED) e atualiza cache a cada snapshot do Firestore.
+    - `fetchByUser`: tenta HIT do cache; em MISS busca no Firestore e grava no cache; TTL padrão 5 min.
+- Chaves do cache: por `uid` + `DateRange` (start/end ISO8601).
+- Logs: `LoggerService` com mensagens de HIT/MISS, expiração de TTL e writes de cache.
+
+### Validação do cache
+- Dashboard e lista:
+  - Carregamento rápido com dados semeados pelo cache.
+  - Atualização ao criar/editar/excluir transações.
+  - Recalcular ao alternar período (cards/gráficos).
+- Console/Logs (exemplos):
+  - `[TransactionsRepo] fetchByUser cache HIT/WRITE`.
+  - `[TransactionsRepo] watchByUser cache SEED/WRITE`.
+  - `[CacheService] cache expired` quando TTL expira.
 
 ## Transações (paginação)
 - Contrato: `features/transactions/domain/repositories/transactions_repository.dart`
@@ -113,7 +138,7 @@ flutter run -d linux     # Linux
 ## Resolução de Problemas
 - Plugins no Windows: habilite symlink (Developer Mode)
 - Cache do pub: `flutter clean && dart pub cache repair && flutter pub get`
-- Conflito `Consumer` (Provider vs Riverpod): use alias `rp.ProviderScope` (já aplicado)
+- Conflito `Consumer` (Provider vs Riverpod): use alias `rp.ProviderScope` (se aplicável)
 - Firestore: use `Settings.persistenceEnabled` ao invés de `enablePersistence`
 
 ## Funcionalidades Principais

@@ -16,6 +16,7 @@ import 'providers/settings_provider.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/login_screen.dart';
 import 'themes/app_theme.dart';
+import 'services/cache_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,6 +43,11 @@ void main() async {
 
   // Setup DI (GetIt) com serviços atuais
   setupDependencies(FirestoreService());
+
+  // Inicializar Hive e registrar CacheService
+  final cacheService = CacheService();
+  await cacheService.init();
+  getIt.registerSingleton<CacheService>(cacheService);
 
   runApp(const rp.ProviderScope(child: FinancialManagerApp()));
 }

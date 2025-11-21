@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:animations/animations.dart';
+ import 'package:flutter_riverpod/flutter_riverpod.dart' as rp;
 import '../providers/financial_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/user_provider.dart';
@@ -13,6 +14,8 @@ import 'transactions_list_screen.dart';
 import 'add_edit_transaction_screen.dart';
 import 'profile_screen.dart';
 import 'settings_screen.dart';
+ import '../presentation/providers/summary_provider.dart';
+ import '../domain/entities/date_range.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -122,21 +125,92 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
         ],
       ),
-      body: Consumer<FinancialProvider>(
-        builder: (context, provider, child) {
-          final summary = provider.currentSummary;
-          if (summary == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: rp.Consumer(
+        builder: (context, ref, _) {
+          final auth = context.watch<AuthProvider>();
+          final uid = auth.user?.id ?? '';
+          final provider = context.watch<FinancialProvider>();
+          final start = provider.selectedPeriodStart;
+          final end = provider.selectedPeriodEnd;
+          final params = SummaryParams(uid, range: DateRange(start: start, end: end));
+          final asyncSummary = ref.watch(summaryByRangeStreamProvider(params));
 
-          return CustomScrollView(
-            slivers: [
-              _buildAnimatedHeader(context, summary),
-              _buildAnimatedSummaryCards(context, summary),
-              _buildTabSelector(),
-              _buildAnimatedCharts(context, summary),
-              const SliverToBoxAdapter(child: SizedBox(height: 88)),
-            ],
+          return asyncSummary.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, stack) => Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Erro ao carregar resumo:\n$err',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () {
+                      final _ = ref.refresh(summaryByRangeProvider(params));
+                    },
+                    child: const Text('Tentar novamente'),
+                  ),
+                ],
+              ),
+            ),
+            data: (summary) {
+              final isEmpty = summary.totalIncome == 0 &&
+                  summary.totalExpense == 0 &&
+                  summary.expensesByCategory.isEmpty &&
+                  summary.incomesByCategory.isEmpty;
+
+              if (isEmpty) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.inbox,
+                          size: 64,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Nenhuma transação neste período',
+                          style: Theme.of(context).textTheme.titleMedium,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Adicione sua primeira transação para ver o resumo.',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: _showAddTransactionDialog,
+                          icon: const Icon(Icons.add),
+                          label: const Text('Adicionar transação'),
+                        ),
+                        TextButton(
+                          onPressed: () => _navigateToTransactions(context),
+                          child: const Text('Ver lista de transações'),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              return CustomScrollView(
+                slivers: [
+                  _buildAnimatedHeader(context, summary),
+                  _buildAnimatedSummaryCards(context, summary),
+                  _buildTabSelector(),
+                  _buildAnimatedCharts(context, summary),
+                  const SliverToBoxAdapter(child: SizedBox(height: 88)),
+                ],
+              );
+            },
           );
         },
       ),
